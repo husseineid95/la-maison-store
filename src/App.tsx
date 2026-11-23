@@ -278,4 +278,40 @@ export default function App() {
             {visibleProducts.map((p) => (
               <article key={p.id} className="group flex flex-col overflow-hidden rounded-2xl border border-[#E7E2DA] bg-white shadow-2xs transition hover:-translate-y-0.5 hover:shadow-md">
                 <div className="relative aspect-[4/3] overflow-hidden bg-[#F3EFE8]">
-      
+                        {p.image_url ? <img src={p.image_url} alt={p.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="flex h-full w-full flex-col items-center justify-center text-[#A8A29E]"><ImageIcon className="h-8 w-8" /><span className="mt-1 text-[11px] font-medium">La Maison</span></div>}
+                  {p.badge && <span className="absolute left-3 top-3 rounded-full bg-[#1C1917]/90 px-3 py-1 text-[11px] font-semibold text-white">{p.badge}</span>}
+                  <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-medium text-[#57534E]">{p.category}</span>
+                </div>
+                <div className="flex flex-1 flex-col justify-between p-5">
+                  <div>
+                    <h3 className="text-base font-bold text-[#1C1917]">{p.name}</h3>
+                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-[#57534E]">{p.description}</p>
+                  </div>
+                  <div className="mt-5 flex items-center justify-between border-t border-[#F3EFE8] pt-4">
+                    <span className="text-lg font-bold text-[#1C1917]">{activeRegion.symbol}{unitPrice(p).toFixed(2)}</span>
+                    <button type="button" disabled={!p.in_stock} onClick={() => addToCart(p.id)} className="inline-flex items-center gap-1.5 rounded-full bg-[#1C1917] px-4 py-2 text-xs font-semibold text-white hover:bg-[#292524] disabled:opacity-40 transition">
+                      <Plus className="h-3.5 w-3.5" /> {p.in_stock ? "Add to Bag" : "Out of Stock"}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </main>
+
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} region={region} cartItems={cartItems} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onUpdateQty={updateQty} onSubmitOrder={handleOrderSubmit} />
+      <AdminModal open={adminOpen} onClose={() => setAdminOpen(false)} authed={adminAuthed} setAuthed={setAdminAuthed} region={region} onSwitchRegion={adminSwitchRegion} products={products} orders={orders} onSaveProduct={saveProduct} onDeleteProduct={deleteProduct} onUpdateOrderStatus={updateOrderStatus} onToast={showToast} />
+
+      <footer className="border-t border-[#E7E2DA] bg-white px-4 py-8 text-xs text-[#78716C]">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 sm:flex-row">
+          <p className="font-serif-brand text-lg font-bold text-[#1C1917]">La Maison</p>
+          <p>© {new Date().getFullYear()} La Maison · {activeRegion.name}</p>
+        </div>
+      </footer>
+
+      {toastMsg && <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#1C1917] px-5 py-2.5 text-xs font-semibold text-white shadow-lg">{toastMsg}</div>}
+    </div>
+  );
+}
+
