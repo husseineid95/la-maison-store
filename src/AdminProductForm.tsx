@@ -1,0 +1,192 @@
+import { useEffect, useState } from "react";
+import { Upload, Star, X } from "lucide-react";
+import { supabase, isSupabaseConfigured } from "./supabase";
+import { ADMIN_CATEGORIES, LANGUAGES, REGIONS, getProductImages, type LangCode, type LocalizedText, type Product, type ProductCategory, type RegionCode } from "./storeData";
+
+interface AdminProductFormProps {
+  editingProduct: Product | null;
+  onCancelEdit: () => void;
+  onSaveProduct: (item: Product, isEdit: boolean) => Promise<void>;
+  onToast: (msg: string) => void;
+}
+
+export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, onToast }: AdminProductFormProps) {
+  const [editLang, setEditLang] = useState<LangCode>("en");
+  const [pName, setPName] = useState("");
+  const [pDesc, setPDesc] = useState("");
+  const [pTrans, setPTrans] = useState<Partial<Record<LangCode, LocalizedText>>>({});
+  const [pCat, setPCat] = useState<ProductCategory>("Kitchenware");
+  const [pPriceLb, setPPriceLb] = useState("");
+  const [pPriceEu, setPPriceEu] = useState("");
+  const [pImages, setPImages] = useState<string[]>([]);
+  const [pUrlInput, setPUrlInput] = useState("");
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [pBadge, setPBadge] = useState("");
+  const [pRegions, setPRegions] = useState<RegionCode[]>(["LB"]);
+  const [pInStock, setPInStock] = useState(true);
+
+  useEffect(() => {
+    if (editingProduct) {
+      setEditLang("en");
+      setPName(editingProduct.name);
+      setPDesc(editingProduct.description);
+      setPTrans(editingProduct.translations || {});
+      setPCat(editingProduct.category);
+      setPPriceLb(String(editingProduct.price_lb));
+      setPPriceEu(String(editingProduct.price_eu));
+      setPImages(getProductImages(editingProduct));
+      setPUrlInput("");
+      setPBadge(editingProduct.badge || "");
+      setPRegions(editingProduct.regions);
+      setPInStock(editingProduct.in_stock);
+    } else {
+      resetForm();
+    }
+  }, [editingProduct]);
+
+  function resetForm() {
+    setEditLang("en"); setPName(""); setPDesc(""); setPTrans({});
+    setPCat("Kitchenware"); setPPriceLb(""); setPPriceEu(""); setPImages([]);
+    setPUrlInput(""); setPBadge(""); setPRegions(["LB"]); setPInStock(true);
+  }
+
+  function toggleRegion(code: RegionCode) {
+    setPRegions((prev) => prev.includes(code) ? (prev.length > 1 ? prev.filter((r) => r !== code) : prev) : [...prev, code]);
+  }
+
+  function currentName() { return editLang === "en" ? pName : (pTrans[editLang]?.name || ""); }
+  function currentDesc() { return editLang === "en" ? pDesc : (pTrans[editLang]?.description || ""); }
+
+  function updateLocalized(field: "name" | "description", val: string) {
+    if (editLang === "en") {
+      if (field === "name") setPName(val); else setPDesc(val);
+    } else {
+      setPTrans((prev) => ({ ...prev, [editLang]: { ...(prev[editLang] || {}), [field]: val } }));
+    }
+  }
+
+  async function handlePhotoFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploadingPhotos(true);
+    const added: string[] = [];
+
+    for (const file of Array.from(files)) {
+      if (isSupabaseConfigured && supabase) {
+        const ext = file.name.split(".").pop() || "jpg";
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error } = await supabase.storage.from("product-photos").upload(path, file, { upsert: true });
+        if (!error) {
+          const { data } = supabase.storage.from("product-photos").getPublicUrl(path);
+          if (data?.publicUrl) added.push(data.publicUrl);
+        } else {
+          onToast(`Upload error: ${error.message}`);
+        }
+      } else {
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.readAsDataURL(file);
+        });
+        if (dataUrl) added.push(dataUrl);
+      }
+    }
+
+    setPImages((prev) => [...prev, ...added]);
+    setUploadingPhotos(false);
+    if (added.length > 0) onToast(`${added.length} photo${added.length > 1 ? "s" : ""} added`);
+  }
+
+  function addPhotoUrl() {
+    if (!pUrlInput.trim()) return;
+    setPImages((prev) => [...prev, pUrlInput.trim()]);
+    setPUrlInput("");
+  }
+
+  function makeCover(idx: number) {
+    if (idx === 0) return;
+    setPImages((prev) => { const copy = [...prev]; const [picked] = copy.splice(idx, 1); return [picked, ...copy]; });
+  }
+
+  function removePhoto(idx: number) {
+    setPImages((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pName.trim() || !pPriceLb) return;
+    await onSaveProduct({
+      id: editingProduct?.id || `prod-${Date.now()}`,
+      name: pName.trim(),
+      category: pCat,
+      description: pDesc.trim() || "Curated quality essential from La Maison.",
+      price_lb: Number(pPriceLb),
+      price_eu: Number(pPriceEu || pPriceLb),
+      image_url: pImages || "",
+      images: pImages,
+      translations: pTrans,
+      regions: pRegions,
+      badge: pBadge.trim() || undefined,
+      in_stock: pInStock,
+    }, Boolean(editingProduct));
+    if (editingProduct) onCancelEdit();
+    resetForm();
+  }
+
+  return (
+    <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3 rounded-2xl border border-[#E7E2DA] bg-[#FAF8F5] p-4 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-bold">{editingProduct ? "Edit Product" : "Add New Product"}</h3>
+        <div className="flex gap-1">
+          {(["en", "ar", "fr", "de"] as LangCode[]).map((l) => (
+            <button key={l} type="button" onClick={() => setEditLang(l)} className={`rounded-md px-2 py-1 text-[11px] font-bold ${editLang === l ? "bg-[#1C1917] text-white" : "border border-[#E7E2DA] bg-white text-[#57534E]"}`}>
+              {LANGUAGES[l].label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <input required={editLang === "en"} dir={LANGUAGES[editLang].dir} value={currentName()} onChange={(e) => updateLocalized("name", e.target.value)} placeholder={editLang === "en" ? "Product Name (English) *" : `Product Name (${LANGUAGES[editLang].label} - optional)`} className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+      <textarea rows={2} dir={LANGUAGES[editLang].dir} value={currentDesc()} onChange={(e) => updateLocalized("description", e.target.value)} placeholder={editLang === "en" ? "Short product description (English)" : `Description (${LANGUAGES[editLang].label} - optional)`} className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+
+      <select value={pCat} onChange={(e) => setPCat(e.target.value as ProductCategory)} className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2">
+        {ADMIN_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+      </select>
+
+      <div className="grid grid-cols-2 gap-2">
+        <input required type="number" step="0.01" value={pPriceLb} onChange={(e) => setPPriceLb(e.target.value)} placeholder="Lebanon Price ($ USD) *" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+        <input type="number" step="0.01" value={pPriceEu} onChange={(e) => setPPriceEu(e.target.value)} placeholder="France/Germany (€ EUR)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+      </div>
+
+      <div className="space-y-2 rounded-xl border border-[#E7E2DA] bg-white p-3">
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-[#57534E]">Product Photos ({pImages.length})</span>
+          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#1C1917] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#292524]">
+            <Upload className="h-3.5 w-3.5" />
+            <span>{uploadingPhotos ? "Uploading..." : "Upload from Gallery"}</span>
+            <input type="file" accept="image/*" multiple disabled={uploadingPhotos} onChange={(e) => void handlePhotoFiles(e.target.files)} className="hidden" />
+          </label>
+        </div>
+        <div className="flex gap-1.5">
+          <input value={pUrlInput} onChange={(e) => setPUrlInput(e.target.value)} placeholder="Or paste image URL (https://...)" className="flex-1 rounded-lg border border-[#E7E2DA] px-2.5 py-1.5 text-[11px]" />
+          <button type="button" onClick={addPhotoUrl} className="rounded-lg border border-[#E7E2DA] px-2.5 py-1.5 text-[11px] font-semibold">Add URL</button>
+        </div>
+        {pImages.length > 0 && (
+          <div className="grid grid-cols-4 gap-2 pt-1">
+            {pImages.map((img, idx) => (
+              <div key={idx} className="relative aspect-square overflow-hidden rounded-lg border border-[#E7E2DA]">
+                <img src={img} alt="" className="h-full w-full object-cover" />
+                {idx === 0 ? <span className="absolute bottom-1 left-1 rounded bg-[#1C1917]/85 px-1.5 py-0.5 text-[9px] font-bold text-white">Cover</span> : <button type="button" onClick={() => makeCover(idx)} className="absolute bottom-1 left-1 rounded bg-white/90 p-1 text-[#1C1917]"><Star className="h-2.5 w-2.5" /></button>}
+                <button type="button" onClick={() => removePhoto(idx)} className="absolute right-1 top-1 rounded bg-[#DC2626] p-1 text-white"><X className="h-2.5 w-2.5" /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <input value={pBadge} onChange={(e) => setPBadge(e.target.value)} placeholder="Badge (optional, e.g. Best Seller, New)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+
+      <div>
+        <p className="mb-1.5 font-semibold text-[#57534E]">Visible Countries:</p>
+        <div className="flex gap-2">
+          {(["LB", "FR", "DE"] as RegionCode[]).map((code) => (
+              
