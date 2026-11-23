@@ -1089,7 +1089,7 @@ export default function App() {
               </div>
             )}
           </div>
-        </div>
+        
       )}
 
       {/* Clean Minimal Footer */}
