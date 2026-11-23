@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ShieldCheck, Package, Bell, Edit3, Trash2, Globe, Lock, LogOut, X, Image as ImageIcon } from "lucide-react";
-import { ADMIN_CATEGORIES, REGIONS, type Product, type ProductCategory, type RegionCode, type StoreOrder } from "./storeData";
+import { ShieldCheck, Package, Bell, Edit3, Trash2, Globe, Lock, LogOut, X, Image as ImageIcon, Upload, Star } from "lucide-react";
+import { supabase, isSupabaseConfigured } from "./supabase";
+import { ADMIN_CATEGORIES, LANGUAGES, REGIONS, getProductImages, type LangCode, type LocalizedText, type Product, type ProductCategory, type RegionCode, type StoreOrder } from "./storeData";
 
 const ADMIN_PASSCODE = "maison2026";
 
@@ -25,12 +26,17 @@ export function AdminModal({
   const [passInput, setPassInput] = useState("");
   const [tab, setTab] = useState<"orders" | "products">("orders");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLang, setEditLang] = useState<LangCode>("en");
+
   const [pName, setPName] = useState("");
-  const [pCat, setPCat] = useState<ProductCategory>("Kitchenware");
   const [pDesc, setPDesc] = useState("");
+  const [pTrans, setPTrans] = useState<Partial<Record<LangCode, LocalizedText>>>({});
+  const [pCat, setPCat] = useState<ProductCategory>("Kitchenware");
   const [pPriceLb, setPPriceLb] = useState("");
   const [pPriceEu, setPPriceEu] = useState("");
-  const [pImg, setPImg] = useState("");
+  const [pImages, setPImages] = useState<string[]>([]);
+  const [pUrlInput, setPUrlInput] = useState("");
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [pBadge, setPBadge] = useState("");
   const [pRegions, setPRegions] = useState<RegionCode[]>(["LB"]);
   const [pInStock, setPInStock] = useState(true);
@@ -38,18 +44,98 @@ export function AdminModal({
   if (!open) return null;
 
   function startEdit(p: Product) {
-    setEditingId(p.id); setPName(p.name); setPCat(p.category); setPDesc(p.description);
-    setPPriceLb(String(p.price_lb)); setPPriceEu(String(p.price_eu)); setPImg(p.image_url);
-    setPBadge(p.badge || ""); setPRegions(p.regions); setPInStock(p.in_stock); setTab("products");
+    setEditingId(p.id);
+    setEditLang("en");
+    setPName(p.name);
+    setPDesc(p.description);
+    setPTrans(p.translations || {});
+    setPCat(p.category);
+    setPPriceLb(String(p.price_lb));
+    setPPriceEu(String(p.price_eu));
+    setPImages(getProductImages(p));
+    setPUrlInput("");
+    setPBadge(p.badge || "");
+    setPRegions(p.regions);
+    setPInStock(p.in_stock);
+    setTab("products");
   }
 
   function resetForm() {
-    setEditingId(null); setPName(""); setPCat("Kitchenware"); setPDesc("");
-    setPPriceLb(""); setPPriceEu(""); setPImg(""); setPBadge(""); setPRegions(["LB"]); setPInStock(true);
+    setEditingId(null); setEditLang("en"); setPName(""); setPDesc(""); setPTrans({});
+    setPCat("Kitchenware"); setPPriceLb(""); setPPriceEu(""); setPImages([]);
+    setPUrlInput(""); setPBadge(""); setPRegions(["LB"]); setPInStock(true);
   }
 
   function toggleRegion(code: RegionCode) {
     setPRegions((prev) => prev.includes(code) ? (prev.length > 1 ? prev.filter((r) => r !== code) : prev) : [...prev, code]);
+  }
+
+  function currentNameValue() {
+    return editLang === "en" ? pName : (pTrans[editLang]?.name || "");
+  }
+
+  function currentDescValue() {
+    return editLang === "en" ? pDesc : (pTrans[editLang]?.description || "");
+  }
+
+  function updateLocalizedField(field: "name" | "description", val: string) {
+    if (editLang === "en") {
+      if (field === "name") setPName(val);
+      else setPDesc(val);
+    } else {
+      setPTrans((prev) => ({
+        ...prev,
+        [editLang]: { ...(prev[editLang] || {}), [field]: val },
+      }));
+    }
+  }
+
+  async function handlePhotoFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploadingPhotos(true);
+    const added: string[] = [];
+
+    for (const file of Array.from(files)) {
+      if (isSupabaseConfigured && supabase) {
+        const ext = file.name.split(".").pop() || "jpg";
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error } = await supabase.storage.from("product-photos").upload(path, file, { upsert: true });
+        if (!error) {
+          const { data } = supabase.storage.from("product-photos").getPublicUrl(path);
+          if (data?.publicUrl) added.push(data.publicUrl);
+        }
+      } else {
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.readAsDataURL(file);
+        });
+        if (dataUrl) added.push(dataUrl);
+      }
+    }
+
+    setPImages((prev) => [...prev, ...added]);
+    setUploadingPhotos(false);
+    if (added.length > 0) onToast(`${added.length} photo${added.length > 1 ? "s" : ""} added`);
+  }
+
+  function addPhotoUrl() {
+    if (!pUrlInput.trim()) return;
+    setPImages((prev) => [...prev, pUrlInput.trim()]);
+    setPUrlInput("");
+  }
+
+  function makeCoverPhoto(idx: number) {
+    if (idx === 0) return;
+    setPImages((prev) => {
+      const copy = [...prev];
+      const [picked] = copy.splice(idx, 1);
+      return [picked, ...copy];
+    });
+  }
+
+  function removePhoto(idx: number) {
+    setPImages((prev) => prev.filter((_, i) => i !== idx));
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -62,7 +148,9 @@ export function AdminModal({
       description: pDesc.trim() || "Curated quality essential from La Maison.",
       price_lb: Number(pPriceLb),
       price_eu: Number(pPriceEu || pPriceLb),
-      image_url: pImg.trim(),
+      image_url: pImages[0] || "",
+      images: pImages,
+      translations: pTrans,
       regions: pRegions,
       badge: pBadge.trim() || undefined,
       in_stock: pInStock,
@@ -72,7 +160,7 @@ export function AdminModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-      <div className="flex max-h-[90dvh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+      <div className="flex max-h-[92dvh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#E7E2DA] px-6 py-4">
           <div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-[#B45309]" /><h2 className="text-xl font-bold">La Maison Admin</h2></div>
           <div className="flex items-center gap-2">
@@ -114,76 +202,4 @@ export function AdminModal({
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-sm">#{ord.id.slice(-6).toUpperCase()} · {ord.customer_name}</span>
                         <span className="rounded-full bg-white px-2 py-0.5 font-semibold">{REGIONS[ord.region].flag} {ord.region}</span>
-                        <span className={`rounded-full px-2.5 py-0.5 font-bold capitalize ${ord.status === "pending" ? "bg-[#FEF3C7] text-[#B45309]" : ord.status === "confirmed" ? "bg-[#DBEAFE] text-[#1D4ED8]" : "bg-[#DCFCE7] text-[#15803D]"}`}>{ord.status}</span>
-                      </div>
-                      <span className="text-[#78716C]">{new Date(ord.created_at).toLocaleString()}</span>
-                    </div>
-                    <p className="mt-2 text-[#57534E]">📞 <strong>{ord.customer_phone}</strong> · 📍 {ord.city}, {ord.address}{ord.notes ? ` (${ord.notes})` : ""}</p>
-                    <div className="mt-2 space-y-1 rounded-xl bg-white p-3">
-                      {ord.items.map((it, idx) => (
-                        <div key={idx} className="flex justify-between"><span>{it.qty}× {it.name}</span><span className="font-semibold">{(ord.currency === "EUR" ? "€" : "$") + (it.unitPrice * it.qty).toFixed(2)}</span></div>
-                      ))}
-                      <div className="flex justify-between border-t border-[#F3EFE8] pt-1.5 font-bold"><span>Total</span><span>{(ord.currency === "EUR" ? "€" : "$") + ord.total.toFixed(2)}</span></div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button type="button" onClick={() => void onUpdateOrderStatus(ord.id, "confirmed")} className="rounded-full bg-[#1D4ED8] px-3 py-1.5 font-semibold text-white">Mark Confirmed</button>
-                      <button type="button" onClick={() => void onUpdateOrderStatus(ord.id, "delivered")} className="rounded-full bg-[#15803D] px-3 py-1.5 font-semibold text-white">Mark Delivered</button>
-                      <a href={`https://wa.me{ord.customer_phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="rounded-full border border-[#E7E2DA] bg-white px-3 py-1.5 font-semibold text-[#1C1917]">Message Buyer on WhatsApp</a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-                <form onSubmit={(e) => void handleSave(e)} className="space-y-3 rounded-2xl border border-[#E7E2DA] bg-[#FAF8F5] p-4 text-xs">
-                  <h3 className="text-sm font-bold">{editingId ? "Edit Product" : "Add New Product"}</h3>
-                  <input required value={pName} onChange={(e) => setPName(e.target.value)} placeholder="Product Name *" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
-                  <select value={pCat} onChange={(e) => setPCat(e.target.value as ProductCategory)} className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2">
-                    {ADMIN_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                                    <textarea rows={2} value={pDesc} onChange={(e) => setPDesc(e.target.value)} placeholder="Short product description" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input required type="number" step="0.01" value={pPriceLb} onChange={(e) => setPPriceLb(e.target.value)} placeholder="Lebanon Price ($ USD) *" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
-                    <input type="number" step="0.01" value={pPriceEu} onChange={(e) => setPPriceEu(e.target.value)} placeholder="France/Germany (€ EUR)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
-                  </div>
-                  <input value={pImg} onChange={(e) => setPImg(e.target.value)} placeholder="Product Photo URL (https://...)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
-                  <input value={pBadge} onChange={(e) => setPBadge(e.target.value)} placeholder="Badge (optional, e.g. Best Seller, New)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
-                  <div>
-                    <p className="mb-1.5 font-semibold text-[#57534E]">Visible Countries:</p>
-                    <div className="flex gap-2">
-                      {(["LB", "FR", "DE"] as RegionCode[]).map((code) => (
-                        <button key={code} type="button" onClick={() => toggleRegion(code)} className={`rounded-lg border px-3 py-1.5 font-semibold ${pRegions.includes(code) ? "border-[#1C1917] bg-[#1C1917] text-white" : "border-[#E7E2DA] bg-white text-[#57534E]"}`}>{REGIONS[code].flag} {code}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={pInStock} onChange={(e) => setPInStock(e.target.checked)} /> In Stock & Available</label>
-                  <div className="flex gap-2 pt-1">
-                    <button type="submit" className="flex-1 rounded-full bg-[#1C1917] py-2.5 font-bold text-white">{editingId ? "Update Product" : "Add Product"}</button>
-                    {editingId && <button type="button" onClick={resetForm} className="rounded-full border border-[#E7E2DA] bg-white px-4 py-2.5 font-semibold">Cancel</button>}
-                  </div>
-                </form>
-
-                <div className="space-y-2.5">
-                  {products.length === 0 ? <p className="py-8 text-center text-xs text-[#78716C]">No products added yet. Add your first item using the form!</p> : products.map((prod) => (
-                    <div key={prod.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E7E2DA] p-3 text-xs">
-                      {prod.image_url ? <img src={prod.image_url} alt={prod.name} className="h-12 w-12 rounded-lg object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#EFECE6] text-[#A8A29E]"><ImageIcon className="h-4 w-4" /></div>}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-bold">{prod.name}</p>
-                        <p className="text-[#78716C]">{prod.category} · ${prod.price_lb} / €{prod.price_eu} · {prod.regions.join(", ")}</p>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <button type="button" onClick={() => startEdit(prod)} className="rounded-lg border border-[#E7E2DA] p-2 hover:bg-[#F3EFE8]"><Edit3 className="h-3.5 w-3.5" /></button>
-                        <button type="button" onClick={() => void onDeleteProduct(prod.id)} className="rounded-lg border border-[#E7E2DA] p-2 text-[#DC2626] hover:bg-[#FEF2F2]"><Trash2 className="h-3.5 w-3.5" /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
+                        
