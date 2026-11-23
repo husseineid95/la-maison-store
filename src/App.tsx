@@ -740,5 +740,335 @@ export default function App() {
                 </button>
               </div>
             </div>
+            {!adminAuthed ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (passInput === ADMIN_PASSCODE) {
+                    setAdminAuthed(true);
+                    setPassInput("");
+                  } else {
+                    showToast("Incorrect admin passcode");
+                  }
+                }}
+                className="mx-auto my-12 w-full max-w-xs space-y-4 px-6 text-center"
+              >
+                <Lock className="mx-auto h-8 w-8 text-[#B45309]" />
+                <h3 className="text-lg font-bold">Enter Admin Passcode</h3>
+                <input
+                  type="password"
+                  value={passInput}
+                  onChange={(e) => setPassInput(e.target.value)}
+                  placeholder="Passcode"
+                  className="w-full rounded-xl border border-[#E7E2DA] px-4 py-2.5 text-center text-sm focus:border-[#1C1917] focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  className="w-full rounded-full bg-[#1C1917] py-2.5 text-xs font-bold text-white"
+                >
+                  Unlock Admin Panel
+                </button>
+              </form>
+            ) : (
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="mb-6 flex gap-2 border-b border-[#E7E2DA] pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setAdminTab("orders")}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold ${
+                      adminTab === "orders"
+                        ? "bg-[#1C1917] text-white"
+                        : "bg-[#F3EFE8] text-[#57534E]"
+                    }`}
+                  >
+                    <Bell className="h-3.5 w-3.5" />
+                    Customer Orders ({orders.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdminTab("products")}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold ${
+                      adminTab === "products"
+                        ? "bg-[#1C1917] text-white"
+                        : "bg-[#F3EFE8] text-[#57534E]"
+                    }`}
+                  >
+                    <Package className="h-3.5 w-3.5" />
+                    Manage Products ({products.length})
+                  </button>
+                </div>
+
+                {adminTab === "orders" ? (
+                  <div className="space-y-4">
+                    {orders.length === 0 ? (
+                      <p className="py-10 text-center text-sm text-[#78716C]">No orders received yet.</p>
+                    ) : (
+                      orders.map((ord) => (
+                        <div
+                          key={ord.id}
+                          className="rounded-2xl border border-[#E7E2DA] bg-[#FAF8F5] p-4 text-xs"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm">
+                                #{ord.id.slice(-6).toUpperCase()} · {ord.customer_name}
+                              </span>
+                              <span className="rounded-full bg-white px-2 py-0.5 font-semibold">
+                                {REGIONS[ord.region].flag} {ord.region}
+                              </span>
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 font-bold capitalize ${
+                                  ord.status === "pending"
+                                    ? "bg-[#FEF3C7] text-[#B45309]"
+                                    : ord.status === "confirmed"
+                                    ? "bg-[#DBEAFE] text-[#1D4ED8]"
+                                    : "bg-[#DCFCE7] text-[#15803D]"
+                                }`}
+                              >
+                                {ord.status}
+                              </span>
+                            </div>
+                            <span className="text-[#78716C]">
+                              {new Date(ord.created_at).toLocaleString()}
+                            </span>
+                          </div>
+
+                          <p className="mt-2 text-[#57534E]">
+                            📞 <strong>{ord.customer_phone}</strong> · 📍 {ord.city}, {ord.address}
+                            {ord.notes ? ` (${ord.notes})` : ""}
+                          </p>
+
+                          <div className="mt-2 space-y-1 rounded-xl bg-white p-3">
+                            {ord.items.map((it, idx) => (
+                              <div key={idx} className="flex justify-between">
+                                <span>
+                                  {it.qty}× {it.name}
+                                </span>
+                                <span className="font-semibold">
+                                  {(ord.currency === "EUR" ? "€" : "$") +
+                                    (it.unitPrice * it.qty).toFixed(2)}
+                                </span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between border-t border-[#F3EFE8] pt-1.5 font-bold">
+                              <span>Total</span>
+                              <span>
+                                {(ord.currency === "EUR" ? "€" : "$") + ord.total.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void updateOrderStatus(ord.id, "confirmed")}
+                              className="rounded-full bg-[#1D4ED8] px-3 py-1.5 font-semibold text-white"
+                            >
+                              Mark Confirmed
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void updateOrderStatus(ord.id, "delivered")}
+                              className="rounded-full bg-[#15803D] px-3 py-1.5 font-semibold text-white"
+                            >
+                              Mark Delivered
+                            </button>
+                            <a
+                              href={`https://wa.me{ord.customer_phone.replace(/\D/g, "")}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-full border border-[#E7E2DA] bg-white px-3 py-1.5 font-semibold text-[#1C1917]"
+                            >
+                              Message Buyer on WhatsApp
+                            </a>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                                  <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+                    <form
+                      onSubmit={(e) => void saveProduct(e)}
+                      className="space-y-3 rounded-2xl border border-[#E7E2DA] bg-[#FAF8F5] p-4 text-xs"
+                    >
+                      <h3 className="text-sm font-bold">
+                        {editingId ? "Edit Product" : "Add New Product"}
+                      </h3>
+                      <input
+                        required
+                        value={pName}
+                        onChange={(e) => setPName(e.target.value)}
+                        placeholder="Product Name *"
+                        className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2"
+                      />
+                      <select
+                        value={pCat}
+                        onChange={(e) => setPCat(e.target.value as ProductCategory)}
+                        className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2"
+                      >
+                        {CATEGORIES.filter((c) => c !== "All").map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <textarea
+                        rows={2}
+                        value={pDesc}
+                        onChange={(e) => setPDesc(e.target.value)}
+                        placeholder="Short product description"
+                        className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          required
+                          type="number"
+                          step="0.01"
+                          value={pPriceLb}
+                          onChange={(e) => setPPriceLb(e.target.value)}
+                          placeholder="Lebanon Price ($ USD) *"
+                          className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2"
+                        />
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={pPriceEu}
+                          onChange={(e) => setPPriceEu(e.target.value)}
+                          placeholder="France/Germany (€ EUR)"
+                          className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2"
+                        />
+                      </div>
+                      <input
+                        value={pImg}
+                        onChange={(e) => setPImg(e.target.value)}
+                        placeholder="Product Photo URL (https://...)"
+                        className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2"
+                      />
+                      <input
+                        value={pBadge}
+                        onChange={(e) => setPBadge(e.target.value)}
+                        placeholder="Badge (optional, e.g. Best Seller, New)"
+                        className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2"
+                      />
+
+                      <div>
+                        <p className="mb-1.5 font-semibold text-[#57534E]">Visible Countries:</p>
+                        <div className="flex gap-2">
+                          {(["LB", "FR", "DE"] as RegionCode[]).map((code) => (
+                            <button
+                              key={code}
+                              type="button"
+                              onClick={() => toggleProductRegion(code)}
+                              className={`rounded-lg border px-3 py-1.5 font-semibold ${
+                                pRegions.includes(code)
+                                  ? "border-[#1C1917] bg-[#1C1917] text-white"
+                                  : "border-[#E7E2DA] bg-white text-[#57534E]"
+                              }`}
+                            >
+                              {REGIONS[code].flag} {code}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <label className="flex items-center gap-2 font-medium">
+                        <input
+                          type="checkbox"
+                          checked={pInStock}
+                          onChange={(e) => setPInStock(e.target.checked)}
+                        />
+                        In Stock & Available
+                      </label>
+
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="submit"
+                          className="flex-1 rounded-full bg-[#1C1917] py-2.5 font-bold text-white"
+                        >
+                          {editingId ? "Update Product" : "Add Product"}
+                        </button>
+                        {editingId && (
+                          <button
+                            type="button"
+                            onClick={resetProductForm}
+                            className="rounded-full border border-[#E7E2DA] bg-white px-4 py-2.5 font-semibold"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </form>
+
+                    <div className="space-y-2.5">
+                      {products.map((prod) => (
+                        <div
+                          key={prod.id}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-[#E7E2DA] p-3 text-xs"
+                        >
+                          <img
+                            src={prod.image_url}
+                            alt={prod.name}
+                            className="h-12 w-12 rounded-lg object-cover"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-bold">{prod.name}</p>
+                            <p className="text-[#78716C]">
+                              {prod.category} · ${prod.price_lb} / €{prod.price_eu} ·{" "}
+                              {prod.regions.join(", ")}
+                            </p>
+                          </div>
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => startEditProduct(prod)}
+                              className="rounded-lg border border-[#E7E2DA] p-2 hover:bg-[#F3EFE8]"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void deleteProduct(prod.id)}
+                              className="rounded-lg border border-[#E7E2DA] p-2 text-[#DC2626] hover:bg-[#FEF2F2]"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <footer className="border-t border-[#E7E2DA] bg-white px-4 py-8 text-xs text-[#78716C]">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 sm:flex-row">
+          <p className="font-serif-brand text-lg font-bold text-[#1C1917]">La Maison</p>
+          <p>Kitchenware · Detergents · Deodorants · Skincare · Stationery</p>
+          <a
+            href={`https://wa.me{WHATSAPP_NUMBER}`}
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-[#1C1917] underline"
+          >
+            WhatsApp Support: +961 81 428 535
+          </a>
+        </div>
+      </footer>
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#1C1917] px-5 py-2.5 text-xs font-semibold text-white shadow-lg">
+          {toastMsg}
+        </div>
+      )}
+    </div>
+  );
+                                }
 
                   
