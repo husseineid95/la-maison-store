@@ -141,4 +141,49 @@ export function AdminModal({
                   <select value={pCat} onChange={(e) => setPCat(e.target.value as ProductCategory)} className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2">
                     {ADMIN_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
-                  
+                                    <textarea rows={2} value={pDesc} onChange={(e) => setPDesc(e.target.value)} placeholder="Short product description" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input required type="number" step="0.01" value={pPriceLb} onChange={(e) => setPPriceLb(e.target.value)} placeholder="Lebanon Price ($ USD) *" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+                    <input type="number" step="0.01" value={pPriceEu} onChange={(e) => setPPriceEu(e.target.value)} placeholder="France/Germany (€ EUR)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+                  </div>
+                  <input value={pImg} onChange={(e) => setPImg(e.target.value)} placeholder="Product Photo URL (https://...)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+                  <input value={pBadge} onChange={(e) => setPBadge(e.target.value)} placeholder="Badge (optional, e.g. Best Seller, New)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+                  <div>
+                    <p className="mb-1.5 font-semibold text-[#57534E]">Visible Countries:</p>
+                    <div className="flex gap-2">
+                      {(["LB", "FR", "DE"] as RegionCode[]).map((code) => (
+                        <button key={code} type="button" onClick={() => toggleRegion(code)} className={`rounded-lg border px-3 py-1.5 font-semibold ${pRegions.includes(code) ? "border-[#1C1917] bg-[#1C1917] text-white" : "border-[#E7E2DA] bg-white text-[#57534E]"}`}>{REGIONS[code].flag} {code}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={pInStock} onChange={(e) => setPInStock(e.target.checked)} /> In Stock & Available</label>
+                  <div className="flex gap-2 pt-1">
+                    <button type="submit" className="flex-1 rounded-full bg-[#1C1917] py-2.5 font-bold text-white">{editingId ? "Update Product" : "Add Product"}</button>
+                    {editingId && <button type="button" onClick={resetForm} className="rounded-full border border-[#E7E2DA] bg-white px-4 py-2.5 font-semibold">Cancel</button>}
+                  </div>
+                </form>
+
+                <div className="space-y-2.5">
+                  {products.length === 0 ? <p className="py-8 text-center text-xs text-[#78716C]">No products added yet. Add your first item using the form!</p> : products.map((prod) => (
+                    <div key={prod.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E7E2DA] p-3 text-xs">
+                      {prod.image_url ? <img src={prod.image_url} alt={prod.name} className="h-12 w-12 rounded-lg object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#EFECE6] text-[#A8A29E]"><ImageIcon className="h-4 w-4" /></div>}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-bold">{prod.name}</p>
+                        <p className="text-[#78716C]">{prod.category} · ${prod.price_lb} / €{prod.price_eu} · {prod.regions.join(", ")}</p>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button type="button" onClick={() => startEdit(prod)} className="rounded-lg border border-[#E7E2DA] p-2 hover:bg-[#F3EFE8]"><Edit3 className="h-3.5 w-3.5" /></button>
+                        <button type="button" onClick={() => void onDeleteProduct(prod.id)} className="rounded-lg border border-[#E7E2DA] p-2 text-[#DC2626] hover:bg-[#FEF2F2]"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
