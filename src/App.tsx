@@ -112,8 +112,7 @@ export default function App() {
       return { ...prev, [id]: nextQty };
     });
   }
-
-  async function handleOrderSubmit(details: { name: string; phone: string; city: string; address: string; notes: string }) {
+    async function handleOrderSubmit(details: { name: string; phone: string; city: string; address: string; notes: string }) {
     if (cartItems.length === 0) return null;
     const newOrder: StoreOrder = {
       id: `ord-${Date.now()}`,
@@ -216,18 +215,67 @@ export default function App() {
 
           <div className="relative hidden max-w-md flex-1 md:block">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78716C]" />
-                  <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} region={region} cartItems={cartItems} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onUpdateQty={updateQty} onSubmitOrder={handleOrderSubmit} />
-      <AdminModal open={adminOpen} onClose={() => setAdminOpen(false)} authed={adminAuthed} setAuthed={setAdminAuthed} region={region} onSwitchRegion={adminSwitchRegion} products={products} orders={orders} onSaveProduct={saveProduct} onDeleteProduct={deleteProduct} onUpdateOrderStatus={updateOrderStatus} onToast={showToast} />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..." className="w-full rounded-full border border-[#E7E2DA] bg-white py-2 pl-10 pr-4 text-sm focus:border-[#1C1917] focus:outline-none" />
+          </div>
 
-      <footer className="border-t border-[#E7E2DA] bg-white px-4 py-8 text-xs text-[#78716C]">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 sm:flex-row">
-          <p className="font-serif-brand text-lg font-bold text-[#1C1917]">La Maison</p>
-          <p>© {new Date().getFullYear()} La Maison · {activeRegion.name}</p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setAdminOpen(true)} className="relative inline-flex items-center gap-1.5 rounded-full border border-[#E7E2DA] bg-white px-3.5 py-2 text-xs font-semibold text-[#1C1917] hover:bg-[#F5F2EC] transition">
+              <ShieldCheck className="h-4 w-4 text-[#B45309]" />
+              <span>Admin</span>
+              {pendingOrdersCount > 0 && <span className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#DC2626] px-1.5 text-[10px] font-bold text-white">{pendingOrdersCount}</span>}
+            </button>
+            <button type="button" onClick={() => setCartOpen(true)} className="relative inline-flex items-center gap-2 rounded-full bg-[#1C1917] px-4 py-2 text-xs font-semibold text-white hover:bg-[#292524] transition">
+              <ShoppingBag className="h-4 w-4" />
+              <span>Bag</span>
+              {cartCount > 0 && <span className="rounded-full bg-[#D97706] px-1.5 py-0.5 text-[10px] font-bold text-white">{cartCount}</span>}
+            </button>
+          </div>
         </div>
-      </footer>
 
-      {toastMsg && <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#1C1917] px-5 py-2.5 text-xs font-semibold text-white shadow-lg">{toastMsg}</div>}
-    </div>
-  );
-          }
-          
+        <div className="mx-auto max-w-7xl space-y-3 px-4 pb-3 sm:px-6">
+          <div className="relative md:hidden">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78716C]" />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..." className="w-full rounded-full border border-[#E7E2DA] bg-white py-2 pl-10 pr-4 text-sm focus:border-[#1C1917] focus:outline-none" />
+          </div>
+
+          {activeCategories.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button type="button" onClick={() => setSelectedCategory("All")} className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${selectedCategory === "All" ? "bg-[#1C1917] text-white" : "border border-[#E7E2DA] bg-white text-[#57534E]"}`}>All</button>
+              {activeCategories.map((cat) => (
+                <button key={cat} type="button" onClick={() => setSelectedCategory(cat)} className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${selectedCategory === cat ? "bg-[#1C1917] text-white" : "border border-[#E7E2DA] bg-white text-[#57534E]"}`}>{cat}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      </header>
+
+      <section className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
+        <div className="overflow-hidden rounded-3xl border border-[#E7E2DA] bg-gradient-to-br from-[#F3EFE8] via-[#FAF8F5] to-[#EFE8DC] p-7 sm:p-10">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[#9A3412] shadow-2xs">
+              {activeRegion.flag} Curated for {activeRegion.name} · {activeRegion.paymentLabel}
+            </span>
+            <h1 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl">Thoughtful essentials for your kitchen, home & daily care.</h1>
+            <p className="mt-3 text-sm leading-relaxed text-[#57534E] sm:text-base">Curated everyday essentials delivered straight to your door.</p>
+          </div>
+        </div>
+      </section>
+
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold">{selectedCategory === "All" ? "Collection" : selectedCategory}</h2>
+          {visibleProducts.length > 0 && <span className="text-xs font-medium text-[#78716C]">{visibleProducts.length} {visibleProducts.length === 1 ? "item" : "items"}</span>}
+        </div>
+
+        {visibleProducts.length === 0 ? (
+          <div className="rounded-2xl border border-[#E7E2DA] bg-white p-12 text-center">
+            <Package className="mx-auto h-9 w-9 text-[#A8A29E]" />
+            <p className="mt-3 text-sm font-semibold text-[#1C1917]">New collection arriving soon</p>
+            <p className="mt-1 text-xs text-[#78716C]">Items added in Admin for {activeRegion.name} will appear here immediately.</p>
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {visibleProducts.map((p) => (
+              <article key={p.id} className="group flex flex-col overflow-hidden rounded-2xl border border-[#E7E2DA] bg-white shadow-2xs transition hover:-translate-y-0.5 hover:shadow-md">
+                <div className="relative aspect-[4/3] overflow-hidden bg-[#F3EFE8]">
+      
