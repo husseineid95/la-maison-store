@@ -189,4 +189,18 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
         <p className="mb-1.5 font-semibold text-[#57534E]">Visible Countries:</p>
         <div className="flex gap-2">
           {(["LB", "FR", "DE"] as RegionCode[]).map((code) => (
-              
+                        <button key={code} type="button" onClick={() => toggleRegion(code)} className={`rounded-lg border px-3 py-1.5 font-semibold ${pRegions.includes(code) ? "border-[#1C1917] bg-[#1C1917] text-white" : "border-[#E7E2DA] bg-white text-[#57534E]"}`}>{REGIONS[code].flag} {code}</button>
+          ))}
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={pInStock} onChange={(e) => setPInStock(e.target.checked)} /> In Stock & Available</label>
+
+      <div className="flex gap-2 pt-1">
+        <button type="submit" disabled={uploadingPhotos} className="flex-1 rounded-full bg-[#1C1917] py-2.5 font-bold text-white disabled:opacity-50">{editingProduct ? "Update Product" : "Add Product"}</button>
+        {editingProduct && <button type="button" onClick={() => { onCancelEdit(); resetForm(); }} className="rounded-full border border-[#E7E2DA] bg-white px-4 py-2.5 font-semibold">Cancel</button>}
+      </div>
+    </form>
+  );
+}
+
