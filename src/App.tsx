@@ -3,7 +3,7 @@ import { ShoppingBag, Search, Plus, ShieldCheck, Package, Truck, Image as ImageI
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { ADMIN_CATEGORIES, INITIAL_PRODUCTS, LANGUAGES, REGIONS, detectVisitorLang, detectVisitorRegion, getProductImages, getProductText, type LangCode, type Product, type RegionCode, type StoreOrder } from "./storeData";
 import { CartDrawer } from "./CartDrawer";
-import { AdminModal } from "./AdminModal";
+import { AdminPanel } from "./AdminPanel";
 
 const WHATSAPP_NUMBER = "96181428535";
 
