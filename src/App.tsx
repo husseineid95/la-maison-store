@@ -49,50 +49,42 @@ const [logoTaps, setLogoTaps] = useState(0);
     localStorage.setItem("lamaison_lang", next);
   }
 
-      useEffect(() => {
+        useEffect(() => {
     async function loadStore() {
       let cachedProds: Product[] = [];
       const localProds = localStorage.getItem("lamaison_products");
       if (localProds) {
-        try {
-          cachedProds = JSON.parse(localProds);
-          setProducts(cachedProds);
-        } catch {}
+        try { cachedProds = JSON.parse(localProds); setProducts(cachedProds); } catch {}
       }
       const localOrders = localStorage.getItem("lamaison_orders");
       if (localOrders) {
         try { setOrders(JSON.parse(localOrders)); } catch {}
       }
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { data: prodData, error: prodErr } = await supabase
-            .from("store_products")
-            .select("*")
-            .order("created_at", { ascending: false });
-
-          if (!prodErr && prodData) {
-            if (prodData.length > 0) {
-              setProducts(prodData as Product[]);
-              safeCache("lamaison_products", prodData);
-                        } else if (cachedProds.length > 0) {
-              let syncedCount = 0;
-              let lastErr = "";
-              for (const item of cachedProds) {
-                const { images, translations, ...coreItem } = item;
-                const res = await supabase.from("store_products").upsert(item);
-                if (!res.error) {
-                  syncedCount++;
-                } else {
-                  const retry = await supabase.from("store_products").upsert(coreItem);
-                  if (!retry.error) syncedCount++;
-                  else lastErr = retry.error.message;
-                }
-              }
-              if (syncedCount > 0) showToast(`Synced ${syncedCount} product(s) to cloud!`);
-              else if (lastErr) showToast(`Sync issue: ${lastErr}`);
-            }
-
+      try {
+        const res = await fetch("/api/products");
+        if (res.ok) {
+          const cloudProds = (await res.json()) as Product[];
+          if (Array.isArray(cloudProds) && cloudProds.length > 0) {
+            setProducts(cloudProds);
+            safeCache("lamaison_products", cloudProds);
+          } else if (cachedProds.length > 0) {
+            await fetch("/api/products", { method: "POST", body: JSON.stringify(cachedProds) });
+            showToast(`Synced ${cachedProds.length} product(s) to cloud!`);
           }
+        }
+        const ordRes = await fetch("/api/orders");
+        if (ordRes.ok) {
+          const cloudOrders = (await ordRes.json()) as StoreOrder[];
+          if (Array.isArray(cloudOrders) && cloudOrders.length > 0) {
+            setOrders(cloudOrders);
+            safeCache("lamaison_orders", cloudOrders);
+          }
+        }
+      } catch {}
+    }
+    void loadStore();
+  }, []);
+
 
           const { data: orderData } = await supabase
             .from("store_orders")
