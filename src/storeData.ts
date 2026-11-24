@@ -92,6 +92,12 @@ export interface StoreOrder {
   status: "pending" | "confirmed" | "delivered";
 }
 
+export function isVideoMedia(url: string): boolean {
+  if (!url) return false;
+  if (url.startsWith("data:video/")) return true;
+  return /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(url);
+}
+
 export function getProductImages(p: Product): string[] {
   if (Array.isArray(p.images) && p.images.length > 0) return p.images.filter(Boolean);
   return p.image_url ? [p.image_url] : [];
