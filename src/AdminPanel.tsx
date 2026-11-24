@@ -86,9 +86,32 @@ export function AdminPanel({
                     </div>
                     <p className="mt-2 text-[#57534E]">Phone: <strong>{ord.customer_phone}</strong> · Address: <strong>{ord.city}, {ord.address}</strong>{ord.notes ? ` · Notes: ${ord.notes}` : ""}</p>
                     <div className="mt-2 space-y-1 rounded-xl bg-white p-3">
-                      {ord.items.map((it, idx) => (
-                        <div key={idx} className="flex justify-between"><span>{it.qty}× {it.name}</span><span className="font-semibold">{(ord.currency === "EUR" ? "€" : "$") + (it.unitPrice * it.qty).toFixed(2)}</span></div>
-                      ))}
+                                            {ord.items.map((it, idx) => {
+                        const prod = products.find((p) => p.id === it.id);
+                        const thumb = prod ? (getProductImages(prod)[0] || "") : "";
+                        const sym = ord.currency === "EUR" ? "€" : "$";
+                        return (
+                          <div key={idx} className="flex items-center justify-between gap-3 py-1">
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              {thumb ? (
+                                isVideoMedia(thumb) ? (
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#1C1917] text-white"><Film className="h-4 w-4" /></div>
+                                ) : (
+                                  <div style={{ backgroundImage: `url(${thumb})` }} className="h-10 w-10 shrink-0 rounded-lg border border-[#E7E2DA] bg-cover bg-center" />
+                                )
+                              ) : (
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#EFECE6] text-[#A8A29E]"><ImageIcon className="h-4 w-4" /></div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="truncate font-bold text-[#1C1917]">{it.name}</p>
+                                <p className="text-[11px] text-[#78716C]">{prod ? `${prod.category} · ` : ""}{it.qty} × {sym}{it.unitPrice.toFixed(2)}</p>
+                              </div>
+                            </div>
+                            <span className="shrink-0 font-bold text-[#1C1917]">{sym}{(it.unitPrice * it.qty).toFixed(2)}</span>
+                          </div>
+                        );
+                      })}
+
                       <div className="flex justify-between border-t border-[#F3EFE8] pt-1 text-[#57534E]"><span>Delivery</span><span>{ord.delivery_fee === 0 ? "FREE" : (ord.currency === "EUR" ? "€" : "$") + ord.delivery_fee.toFixed(2)}</span></div>
                       <div className="flex justify-between border-t border-[#F3EFE8] pt-1.5 font-bold"><span>Total ({REGIONS[ord.region].paymentLabel})</span><span>{(ord.currency === "EUR" ? "€" : "$") + ord.total.toFixed(2)}</span></div>
                     </div>
