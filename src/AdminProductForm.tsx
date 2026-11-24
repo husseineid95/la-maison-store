@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Upload, Star, X } from "lucide-react";
+import { Upload, Star, X, Film } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "./supabase";
-import { ADMIN_CATEGORIES, LANGUAGES, REGIONS, getProductImages, type LangCode, type LocalizedText, type Product, type ProductCategory, type RegionCode } from "./storeData";
+import { ADMIN_CATEGORIES, LANGUAGES, REGIONS, getProductImages, isVideoMedia, type LangCode, type LocalizedText, type Product, type ProductCategory, type RegionCode } from "./storeData";
 
 interface AdminProductFormProps {
   editingProduct: Product | null;
@@ -18,9 +18,9 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
   const [pCat, setPCat] = useState<ProductCategory>("Kitchenware");
   const [pPriceLb, setPPriceLb] = useState("");
   const [pPriceEu, setPPriceEu] = useState("");
-  const [pImages, setPImages] = useState<string[]>([]);
+  const [pMedia, setPMedia] = useState<string[]>([]);
   const [pUrlInput, setPUrlInput] = useState("");
-  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [pBadge, setPBadge] = useState("");
   const [pRegions, setPRegions] = useState<RegionCode[]>(["LB"]);
   const [pInStock, setPInStock] = useState(true);
@@ -34,7 +34,7 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
       setPCat(editingProduct.category);
       setPPriceLb(String(editingProduct.price_lb));
       setPPriceEu(String(editingProduct.price_eu));
-      setPImages(getProductImages(editingProduct));
+      setPMedia(getProductImages(editingProduct));
       setPUrlInput("");
       setPBadge(editingProduct.badge || "");
       setPRegions(editingProduct.regions);
@@ -46,7 +46,7 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
 
   function resetForm() {
     setEditLang("en"); setPName(""); setPDesc(""); setPTrans({});
-    setPCat("Kitchenware"); setPPriceLb(""); setPPriceEu(""); setPImages([]);
+    setPCat("Kitchenware"); setPPriceLb(""); setPPriceEu(""); setPMedia([]);
     setPUrlInput(""); setPBadge(""); setPRegions(["LB"]); setPInStock(true);
   }
 
@@ -64,51 +64,66 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
       setPTrans((prev) => ({ ...prev, [editLang]: { ...(prev[editLang] || {}), [field]: val } }));
     }
   }
-
-  async function handlePhotoFiles(files: FileList | null) {
+    async function handleMediaFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
-    setUploadingPhotos(true);
+    setUploading(true);
     const added: string[] = [];
 
     for (const file of Array.from(files)) {
+      let url = "";
       if (isSupabaseConfigured && supabase) {
-        const ext = file.name.split(".").pop() || "jpg";
+        const ext = file.name.split(".").pop() || (file.type.startsWith("video/") ? "mp4" : "jpg");
         const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error } = await supabase.storage.from("product-photos").upload(path, file, { upsert: true });
         if (!error) {
           const { data } = supabase.storage.from("product-photos").getPublicUrl(path);
-          if (data?.publicUrl) added.push(data.publicUrl);
-        } else {
-          onToast(`Upload error: ${error.message}`);
+          if (data?.publicUrl) url = data.publicUrl;
         }
-      } else {
-        const dataUrl = await new Promise<string>((resolve) => {
+      }
+      if (!url && file.type.startsWith("image/")) {
+        url = await new Promise<string>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const scale = Math.min(1, 900 / Math.max(img.width, img.height));
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.8));
+          };
+          img.onerror = () => resolve("");
+          img.src = URL.createObjectURL(file);
+        });
+      }
+      if (!url && file.type.startsWith("video/")) {
+        url = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => resolve("");
           reader.readAsDataURL(file);
         });
-        if (dataUrl) added.push(dataUrl);
       }
+      if (url) added.push(url);
     }
 
-    setPImages((prev) => [...prev, ...added]);
-    setUploadingPhotos(false);
-    if (added.length > 0) onToast(`${added.length} photo${added.length > 1 ? "s" : ""} added`);
+    setPMedia((prev) => [...prev, ...added]);
+    setUploading(false);
+    if (added.length > 0) onToast(`${added.length} file${added.length > 1 ? "s" : ""} attached`);
   }
 
-  function addPhotoUrl() {
+  function addMediaUrl() {
     if (!pUrlInput.trim()) return;
-    setPImages((prev) => [...prev, pUrlInput.trim()]);
+    setPMedia((prev) => [...prev, pUrlInput.trim()]);
     setPUrlInput("");
   }
 
   function makeCover(idx: number) {
     if (idx === 0) return;
-    setPImages((prev) => { const copy = [...prev]; const [picked] = copy.splice(idx, 1); return [picked, ...copy]; });
+    setPMedia((prev) => { const copy = [...prev]; const [picked] = copy.splice(idx, 1); return [picked, ...copy]; });
   }
 
-  function removePhoto(idx: number) {
-    setPImages((prev) => prev.filter((_, i) => i !== idx));
+  function removeMedia(idx: number) {
+    setPMedia((prev) => prev.filter((_, i) => i !== idx));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -121,8 +136,8 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
       description: pDesc.trim() || "Curated quality essential from La Maison.",
       price_lb: Number(pPriceLb),
       price_eu: Number(pPriceEu || pPriceLb),
-      image_url: pImages || "",
-      images: pImages,
+      image_url: pMedia[0] || "",
+      images: pMedia,
       translations: pTrans,
       regions: pRegions,
       badge: pBadge.trim() || undefined,
@@ -158,25 +173,32 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
       </div>
 
       <div className="space-y-2 rounded-xl border border-[#E7E2DA] bg-white p-3">
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-[#57534E]">Product Photos ({pImages.length})</span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-semibold text-[#57534E]">Photos & Videos ({pMedia.length})</span>
           <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#1C1917] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#292524]">
             <Upload className="h-3.5 w-3.5" />
-            <span>{uploadingPhotos ? "Uploading..." : "Upload from Gallery"}</span>
-            <input type="file" accept="image/*" multiple disabled={uploadingPhotos} onChange={(e) => void handlePhotoFiles(e.target.files)} className="hidden" />
+            <span>{uploading ? "Uploading..." : "Photos / Videos"}</span>
+            <input type="file" accept="image/*,video/*" multiple disabled={uploading} onChange={(e) => void handleMediaFiles(e.target.files)} className="hidden" />
           </label>
         </div>
         <div className="flex gap-1.5">
-          <input value={pUrlInput} onChange={(e) => setPUrlInput(e.target.value)} placeholder="Or paste image URL (https://...)" className="flex-1 rounded-lg border border-[#E7E2DA] px-2.5 py-1.5 text-[11px]" />
-          <button type="button" onClick={addPhotoUrl} className="rounded-lg border border-[#E7E2DA] px-2.5 py-1.5 text-[11px] font-semibold">Add URL</button>
+          <input value={pUrlInput} onChange={(e) => setPUrlInput(e.target.value)} placeholder="Or paste photo/video URL (https://...)" className="flex-1 rounded-lg border border-[#E7E2DA] px-2.5 py-1.5 text-[11px]" />
+          <button type="button" onClick={addMediaUrl} className="rounded-lg border border-[#E7E2DA] px-2.5 py-1.5 text-[11px] font-semibold">Add URL</button>
         </div>
-        {pImages.length > 0 && (
+        {pMedia.length > 0 && (
           <div className="grid grid-cols-4 gap-2 pt-1">
-            {pImages.map((img, idx) => (
-              <div key={idx} className="relative aspect-square overflow-hidden rounded-lg border border-[#E7E2DA]">
-                <img src={img} alt="" className="h-full w-full object-cover" />
+            {pMedia.map((src, idx) => (
+              <div key={idx} className="relative aspect-square overflow-hidden rounded-lg border border-[#E7E2DA] bg-black">
+                {isVideoMedia(src) ? (
+                  <>
+                    <video src={src} muted playsInline className="h-full w-full object-cover" />
+                    <span className="absolute right-1 bottom-1 rounded bg-black/75 p-0.5 text-white"><Film className="h-2.5 w-2.5" /></span>
+                  </>
+                ) : (
+                  <div style={{ backgroundImage: `url(${src})` }} className="h-full w-full bg-cover bg-center" />
+                )}
                 {idx === 0 ? <span className="absolute bottom-1 left-1 rounded bg-[#1C1917]/85 px-1.5 py-0.5 text-[9px] font-bold text-white">Cover</span> : <button type="button" onClick={() => makeCover(idx)} className="absolute bottom-1 left-1 rounded bg-white/90 p-1 text-[#1C1917]"><Star className="h-2.5 w-2.5" /></button>}
-                <button type="button" onClick={() => removePhoto(idx)} className="absolute right-1 top-1 rounded bg-[#DC2626] p-1 text-white"><X className="h-2.5 w-2.5" /></button>
+                <button type="button" onClick={() => removeMedia(idx)} className="absolute right-1 top-1 rounded bg-[#DC2626] p-1 text-white"><X className="h-2.5 w-2.5" /></button>
               </div>
             ))}
           </div>
@@ -189,7 +211,7 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
         <p className="mb-1.5 font-semibold text-[#57534E]">Visible Countries:</p>
         <div className="flex gap-2">
           {(["LB", "FR", "DE"] as RegionCode[]).map((code) => (
-                        <button key={code} type="button" onClick={() => toggleRegion(code)} className={`rounded-lg border px-3 py-1.5 font-semibold ${pRegions.includes(code) ? "border-[#1C1917] bg-[#1C1917] text-white" : "border-[#E7E2DA] bg-white text-[#57534E]"}`}>{REGIONS[code].flag} {code}</button>
+            <button key={code} type="button" onClick={() => toggleRegion(code)} className={`rounded-lg border px-3 py-1.5 font-semibold ${pRegions.includes(code) ? "border-[#1C1917] bg-[#1C1917] text-white" : "border-[#E7E2DA] bg-white text-[#57534E]"}`}>{REGIONS[code].flag} {code}</button>
           ))}
         </div>
       </div>
@@ -197,10 +219,10 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
       <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={pInStock} onChange={(e) => setPInStock(e.target.checked)} /> In Stock & Available</label>
 
       <div className="flex gap-2 pt-1">
-        <button type="submit" disabled={uploadingPhotos} className="flex-1 rounded-full bg-[#1C1917] py-2.5 font-bold text-white disabled:opacity-50">{editingProduct ? "Update Product" : "Add Product"}</button>
+        <button type="submit" disabled={uploading} className="flex-1 rounded-full bg-[#1C1917] py-2.5 font-bold text-white disabled:opacity-50">{editingProduct ? "Update Product" : "Add Product"}</button>
         {editingProduct && <button type="button" onClick={() => { onCancelEdit(); resetForm(); }} className="rounded-full border border-[#E7E2DA] bg-white px-4 py-2.5 font-semibold">Cancel</button>}
       </div>
     </form>
   );
-}
-
+              }
+            
