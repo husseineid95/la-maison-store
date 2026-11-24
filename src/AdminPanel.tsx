@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import { ShieldCheck, Package, Bell, Edit3, Trash2, Globe, Lock, LogOut, X, Image as ImageIcon } from "lucide-react";
-import { REGIONS, getProductImages, type Product, type RegionCode, type StoreOrder } from "./storeData";
+import { ShieldCheck, Package, Bell, Edit3, Trash2, Globe, Lock, LogOut, X, Image as ImageIcon, Film } from "lucide-react";
+import { REGIONS, getProductImages, isVideoMedia, type Product, type RegionCode, type StoreOrder } from "./storeData";
 import { AdminProductForm } from "./AdminProductForm";
 
 const ADMIN_PASSCODE = "maison2026";
@@ -84,17 +84,17 @@ export function AdminPanel({
                       </div>
                       <span className="text-[#78716C]">{new Date(ord.created_at).toLocaleString()}</span>
                     </div>
-                    <p className="mt-2 text-[#57534E]">📞 <strong>{ord.customer_phone}</strong> · 📍 {ord.city}, {ord.address}{ord.notes ? ` (${ord.notes})` : ""}</p>
+                    <p className="mt-2 text-[#57534E]">Phone: <strong>{ord.customer_phone}</strong> · Address: <strong>{ord.city}, {ord.address}</strong>{ord.notes ? ` · Notes: ${ord.notes}` : ""}</p>
                     <div className="mt-2 space-y-1 rounded-xl bg-white p-3">
                       {ord.items.map((it, idx) => (
                         <div key={idx} className="flex justify-between"><span>{it.qty}× {it.name}</span><span className="font-semibold">{(ord.currency === "EUR" ? "€" : "$") + (it.unitPrice * it.qty).toFixed(2)}</span></div>
                       ))}
-                      <div className="flex justify-between border-t border-[#F3EFE8] pt-1.5 font-bold"><span>Total</span><span>{(ord.currency === "EUR" ? "€" : "$") + ord.total.toFixed(2)}</span></div>
+                      <div className="flex justify-between border-t border-[#F3EFE8] pt-1 text-[#57534E]"><span>Delivery</span><span>{ord.delivery_fee === 0 ? "FREE" : (ord.currency === "EUR" ? "€" : "$") + ord.delivery_fee.toFixed(2)}</span></div>
+                      <div className="flex justify-between border-t border-[#F3EFE8] pt-1.5 font-bold"><span>Total ({REGIONS[ord.region].paymentLabel})</span><span>{(ord.currency === "EUR" ? "€" : "$") + ord.total.toFixed(2)}</span></div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button type="button" onClick={() => void onUpdateOrderStatus(ord.id, "confirmed")} className="rounded-full bg-[#1D4ED8] px-3 py-1.5 font-semibold text-white">Mark Confirmed</button>
                       <button type="button" onClick={() => void onUpdateOrderStatus(ord.id, "delivered")} className="rounded-full bg-[#15803D] px-3 py-1.5 font-semibold text-white">Mark Delivered</button>
-                      <a href={`https://wa.me{ord.customer_phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="rounded-full border border-[#E7E2DA] bg-white px-3 py-1.5 font-semibold text-[#1C1917]">Message Buyer on WhatsApp</a>
                     </div>
                   </div>
                 ))}
@@ -104,17 +104,26 @@ export function AdminPanel({
                 <AdminProductForm editingProduct={editingProduct} onCancelEdit={() => setEditingProduct(null)} onSaveProduct={onSaveProduct} onToast={onToast} />
                 <div className="space-y-2.5">
                   {products.length === 0 ? <p className="py-8 text-center text-xs text-[#78716C]">No products added yet. Add your first item using the form!</p> : products.map((prod) => {
-                    const imgs = getProductImages(prod);
+                    const media = getProductImages(prod);
+                    const cover = media || "";
                     return (
                       <div key={prod.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E7E2DA] p-3 text-xs">
-                        {imgs[0] ? <img src={imgs[0]} alt={prod.name} className="h-12 w-12 rounded-lg object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#EFECE6] text-[#A8A29E]"><ImageIcon className="h-4 w-4" /></div>}
+                        {cover ? (
+                          isVideoMedia(cover) ? (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#1C1917] text-white"><Film className="h-4 w-4" /></div>
+                          ) : (
+                            <div style={{ backgroundImage: `url(${cover})` }} className="h-12 w-12 rounded-lg bg-cover bg-center" />
+                          )
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#EFECE6] text-[#A8A29E]"><ImageIcon className="h-4 w-4" /></div>
+                        )}
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-bold">{prod.name}</p>
-                          <p className="text-[#78716C]">{prod.category} · ${prod.price_lb} / €{prod.price_eu} · {imgs.length} photo{imgs.length === 1 ? "" : "s"} · {prod.regions.join(", ")}</p>
+                          <p className="text-[#78716C]">{prod.category} · ${prod.price_lb} / €{prod.price_eu} · {media.length} file{media.length === 1 ? "" : "s"} · {prod.regions.join(", ")}</p>
                         </div>
                         <div className="flex gap-1.5">
                           <button type="button" onClick={() => startEdit(prod)} className="rounded-lg border border-[#E7E2DA] p-2 hover:bg-[#F3EFE8]"><Edit3 className="h-3.5 w-3.5" /></button>
-                          <button type="button" onClick={() => void onDeleteProduct(prod.id)} className="rounded-lg border border-[#E7E2DA] p-2 text-[#DC2626] hover:bg-[#FEF2F2]"><Trash2 className="h-3.5 w-3.5" /></button>
+                                            <button type="button" onClick={() => void onDeleteProduct(prod.id)} className="rounded-lg border border-[#E7E2DA] p-2 text-[#DC2626] hover:bg-[#FEF2F2]"><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
                       </div>
                     );
@@ -127,4 +136,4 @@ export function AdminPanel({
       </div>
     </div>
   );
-            }
+}
