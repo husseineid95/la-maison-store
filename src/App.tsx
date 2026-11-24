@@ -319,13 +319,14 @@ const [logoTaps, setLogoTaps] = useState(0);
 
               return (
                 <article key={p.id} className="group flex flex-col overflow-hidden rounded-2xl border border-[#E7E2DA] bg-white shadow-2xs transition hover:-translate-y-0.5 hover:shadow-md">
-                  <div className="relative aspect-[4/3] overflow-hidden bg-[#F3EFE8]">
+                                    <div className="relative aspect-square overflow-hidden border-b border-[#F3EFE8] bg-white">
                     {activeSrc ? (
                       isVideoMedia(activeSrc) ? (
-                        <video src={activeSrc} controls playsInline muted loop className="h-full w-full object-cover" />
+                        <video src={activeSrc} controls playsInline muted loop className="h-full w-full object-contain" />
                       ) : (
-                        <div style={{ backgroundImage: `url(${activeSrc})` }} className="h-full w-full bg-cover bg-center transition duration-500 group-hover:scale-105" />
+                        <div style={{ backgroundImage: `url(${activeSrc})` }} className="h-full w-full bg-contain bg-center bg-no-repeat p-2 transition duration-500 group-hover:scale-105" />
                       )
+
                     ) : (
                       <div className="flex h-full w-full flex-col items-center justify-center text-[#A8A29E]"><ImageIcon className="h-8 w-8" /><span className="mt-1 text-[11px] font-medium">La Maison</span></div>
                     )}
