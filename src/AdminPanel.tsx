@@ -4,6 +4,13 @@ import { REGIONS, getProductImages, isVideoMedia, type Product, type RegionCode,
 import { AdminProductForm } from "./AdminProductForm";
 
 const ADMIN_PASSCODE = "maison2026";
+export interface HeroBannerConfig {
+  image?: string;
+  eyebrow?: string;
+  title?: string;
+  subtitle?: string;
+  cta?: string;
+}
 
 interface AdminPanelProps {
   open: boolean;
@@ -14,6 +21,9 @@ interface AdminPanelProps {
   onSwitchRegion: (r: RegionCode) => void;
   products: Product[];
   orders: StoreOrder[];
+    heroConfig: HeroBannerConfig;
+  onSaveHero: (cfg: HeroBannerConfig) => Promise<void>;
+  
   onSaveProduct: (item: Product, isEdit: boolean) => Promise<void>;
   onDeleteProduct: (id: string) => Promise<void>;
   onUpdateOrderStatus: (id: string, status: StoreOrder["status"]) => Promise<void>;
@@ -125,6 +135,47 @@ export function AdminPanel({
               </div>
             ) : (
               <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
+                <details className="mb-6 rounded-2xl border border-[#E7E2DA] bg-[#FAF9F6] p-4">
+  <summary className="cursor-pointer text-xs font-bold tracking-wider text-[#1C1917] uppercase">Hero Banner & Brand Message</summary>
+  <div className="mt-4 space-y-3 text-xs">
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="cursor-pointer rounded-xl border border-[#1C1917] bg-white px-3.5 py-2 font-semibold text-[#1C1917] hover:bg-[#1C1917] hover:text-white transition">
+        Upload Banner Photo
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const img = new Image();
+            const reader = new FileReader();
+            reader.onload = () => {
+              img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const maxW = 1200;
+                const scale = Math.min(1, maxW / img.width);
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+                canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                void onSaveHero({ ...heroConfig, image: canvas.toDataURL("image/jpeg", 0.85) });
+              };
+              img.src = String(reader.result || "");
+            };
+            reader.readAsDataURL(file);
+          }}
+        />
+      </label>
+      {heroConfig.image && (
+        <button type="button" onClick={() => void onSaveHero({ ...heroConfig, image: "" })} className="rounded-xl border border-red-200 bg-white px-3 py-2 font-semibold text-red-600">Remove Photo</button>
+      )}
+    </div>
+    <input defaultValue={heroConfig.eyebrow || ""} onBlur={(e) => void onSaveHero({ ...heroConfig, eyebrow: e.target.value })} placeholder="Top Tag (e.g. AMVISAT · HOME & DAILY CARE)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2.5" />
+    <input defaultValue={heroConfig.title || ""} onBlur={(e) => void onSaveHero({ ...heroConfig, title: e.target.value })} placeholder="Main Headline (e.g. Thoughtful essentials for every corner of home.)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2.5" />
+    <textarea rows={2} defaultValue={heroConfig.subtitle || ""} onBlur={(e) => void onSaveHero({ ...heroConfig, subtitle: e.target.value })} placeholder="Brand Message / Subtitle" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2.5" />
+  </div>
+</details>
+                
                 <AdminProductForm editingProduct={editingProduct} onCancelEdit={() => setEditingProduct(null)} onSaveProduct={onSaveProduct} onToast={onToast} />
                 <div className="space-y-2.5">
                   {products.length === 0 ? <p className="py-8 text-center text-xs text-[#78716C]">No products added yet. Add your first item using the form!</p> : products.map((prod) => {
