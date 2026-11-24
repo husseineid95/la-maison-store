@@ -27,7 +27,11 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [search, setSearch] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(() =>
+  typeof window !== "undefined" && new URLSearchParams(window.location.search).get("admin") === "1"
+);
+const [logoTaps, setLogoTaps] = useState(0);
+
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -174,22 +178,27 @@ export default function App() {
     try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
   }
 
-  async function saveProduct(item: Product, isEdit: boolean) {
+    async function saveProduct(item: Product, isEdit: boolean) {
+    const cover = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : (item.image_url || "");
     const cleanItem: Product = {
       ...item,
-      image_url: Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : (typeof item.image_url === "string" ? item.image_url : ""),
+      image_url: cover,
+      images: Array.isArray(item.images) ? item.images : (cover ? [cover] : []),
+      translations: item.translations || {},
     };
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from("store_products").upsert(cleanItem);
-         if (error) { showToast("Saved locally"); }
-
-
+      if (error) {
+        showToast(`DB error: ${error.message}`);
+        return;
+      }
     }
     const next = isEdit ? products.map((p) => (p.id === cleanItem.id ? cleanItem : p)) : [cleanItem, ...products];
     setProducts(next);
     safeCache("lamaison_products", next);
-    showToast(isEdit ? "Product updated" : "Product added to store");
+    showToast(isEdit ? "Product updated" : "Product saved to cloud");
   }
+
 
   async function deleteProduct(id: string) {
     if (isSupabaseConfigured && supabase) await supabase.from("store_products").delete().eq("id", id);
@@ -228,7 +237,8 @@ export default function App() {
       <header className="sticky top-0 z-30 border-b border-[#E7E2DA] bg-[#FAF8F5]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div>
-            <span className="font-serif-brand text-2xl font-bold tracking-tight sm:text-3xl">La Maison</span>
+                        <span onClick={() => { const n = logoTaps + 1; if (n >= 5) { setAdminOpen(true); setLogoTaps(0); } else setLogoTaps(n); }} className="cursor-pointer select-none font-serif-brand text-2xl font-bold tracking-tight sm:text-3xl">La Maison</span>
+
             <span className="mx-2 hidden rounded-full bg-[#EFECE6] px-2.5 py-0.5 text-[11px] font-medium text-[#57534E] sm:inline-block">{t.tagline}</span>
           </div>
 
@@ -238,11 +248,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setAdminOpen(true)} className="relative inline-flex items-center gap-1.5 rounded-full border border-[#E7E2DA] bg-white px-3.5 py-2 text-xs font-semibold text-[#1C1917] hover:bg-[#F5F2EC] transition">
-              <ShieldCheck className="h-4 w-4 text-[#B45309]" />
-              <span>Admin</span>
-              {pendingOrdersCount > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#DC2626] px-1.5 text-[10px] font-bold text-white">{pendingOrdersCount}</span>}
-            </button>
+            
             <button type="button" onClick={() => setCartOpen(true)} className="relative inline-flex items-center gap-2 rounded-full bg-[#1C1917] px-4 py-2 text-xs font-semibold text-white hover:bg-[#292524] transition">
               <ShoppingBag className="h-4 w-4" />
               <span>{t.bag}</span>
