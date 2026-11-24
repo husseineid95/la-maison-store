@@ -49,11 +49,15 @@ const [logoTaps, setLogoTaps] = useState(0);
     localStorage.setItem("lamaison_lang", next);
   }
 
-    useEffect(() => {
+      useEffect(() => {
     async function loadStore() {
+      let cachedProds: Product[] = [];
       const localProds = localStorage.getItem("lamaison_products");
       if (localProds) {
-        try { setProducts(JSON.parse(localProds)); } catch {}
+        try {
+          cachedProds = JSON.parse(localProds);
+          setProducts(cachedProds);
+        } catch {}
       }
       const localOrders = localStorage.getItem("lamaison_orders");
       if (localOrders) {
@@ -61,15 +65,39 @@ const [logoTaps, setLogoTaps] = useState(0);
       }
       if (isSupabaseConfigured && supabase) {
         try {
-          const { data: prodData } = await supabase.from("store_products").select("*").order("created_at", { ascending: false });
-          if (prodData && prodData.length > 0) setProducts(prodData as Product[]);
-          const { data: orderData } = await supabase.from("store_orders").select("*").order("created_at", { ascending: false });
-          if (orderData && orderData.length > 0) setOrders(orderData as StoreOrder[]);
+          const { data: prodData, error: prodErr } = await supabase
+            .from("store_products")
+            .select("*")
+            .order("created_at", { ascending: false });
+
+          if (!prodErr && prodData) {
+            if (prodData.length > 0) {
+              setProducts(prodData as Product[]);
+              safeCache("lamaison_products", prodData);
+            } else if (cachedProds.length > 0) {
+              for (const item of cachedProds) {
+                const { images, translations, ...coreItem } = item;
+                const res = await supabase.from("store_products").upsert(item);
+                if (res.error) await supabase.from("store_products").upsert(coreItem);
+              }
+              showToast("Synced tablet products to cloud!");
+            }
+          }
+
+          const { data: orderData } = await supabase
+            .from("store_orders")
+            .select("*")
+            .order("created_at", { ascending: false });
+          if (orderData && orderData.length > 0) {
+            setOrders(orderData as StoreOrder[]);
+            safeCache("lamaison_orders", orderData);
+          }
         } catch {}
       }
     }
     void loadStore();
   }, []);
+
 
 
   useEffect(() => {
