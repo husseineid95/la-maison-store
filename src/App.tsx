@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ShoppingBag, Search, Plus, ShieldCheck, Package, Truck, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "./supabase";
-import { ADMIN_CATEGORIES, INITIAL_PRODUCTS, LANGUAGES, REGIONS, detectVisitorLang, detectVisitorRegion, getProductImages, getProductText, type LangCode, type Product, type RegionCode, type StoreOrder } from "./storeData";
+import { ADMIN_CATEGORIES, INITIAL_PRODUCTS, LANGUAGES, REGIONS, detectVisitorLang, detectVisitorRegion, getProductImages, getProductText, isVideoMedia, type LangCode, type Product, type RegionCode, type StoreOrder } from "./storeData";
 import { CartDrawer } from "./CartDrawer";
 import { AdminPanel } from "./AdminPanel";
-
-const WHATSAPP_NUMBER = "96181428535";
 
 const UI_COPY: Record<LangCode, {
   tagline: string; search: string; bag: string; all: string;
@@ -76,8 +74,7 @@ export default function App() {
       .subscribe();
     return () => { void supabase?.removeChannel(channel); };
   }, []);
-
-  function adminSwitchRegion(next: RegionCode) {
+    function adminSwitchRegion(next: RegionCode) {
     setRegion(next);
     setSelectedCategory("All");
     setCart({});
@@ -141,7 +138,8 @@ export default function App() {
       return { ...prev, [productId]: next };
     });
   }
-    async function handleOrderSubmit(details: { name: string; phone: string; city: string; address: string; notes: string }) {
+
+  async function handleOrderSubmit(details: { name: string; phone: string; city: string; address: string; notes: string }) {
     if (cartItems.length === 0) return null;
     const newOrder: StoreOrder = {
       id: `ord-${Date.now()}`,
@@ -160,43 +158,16 @@ export default function App() {
       status: "pending",
     };
 
-    try {
-      if (isSupabaseConfigured && supabase) {
-        const { error } = await supabase.from("store_orders").insert(newOrder);
-        if (error) throw error;
-      }
-      const nextOrders = [newOrder, ...orders];
-      setOrders(nextOrders);
-      localStorage.setItem("lamaison_orders", JSON.stringify(nextOrders));
-      setCart({});
-      showToast("Order received! Opening WhatsApp...");
+    const nextOrders = [newOrder, ...orders];
+    setOrders(nextOrders);
+    localStorage.setItem("lamaison_orders", JSON.stringify(nextOrders));
+    setCart({});
+    showToast("Order placed successfully!");
 
-      const sym = newOrder.currency === "EUR" ? "€" : "$";
-      const lines = [
-        `🛍️ *NEW ORDER — LA MAISON*`,
-        `🌍 *Country:* ${REGIONS[newOrder.region].flag} ${REGIONS[newOrder.region].name}`,
-        `🧾 *Order ID:* #${newOrder.id.slice(-6).toUpperCase()}`,
-        ``,
-        `👤 *Buyer Details:*`,
-        `• Name: ${newOrder.customer_name}`,
-        `• Phone: ${newOrder.customer_phone}`,
-        `• City / Area: ${newOrder.city}`,
-        `• Address: ${newOrder.address}`,
-        newOrder.notes ? `• Notes: ${newOrder.notes}` : "",
-        ``,
-        `📦 *Ordered Items:*`,
-        ...newOrder.items.map((it) => `• ${it.qty}x ${it.name} — ${sym}${(it.unitPrice * it.qty).toFixed(2)}`),
-        ``,
-        `Subtotal: ${sym}${newOrder.subtotal.toFixed(2)}`,
-        `Delivery: ${newOrder.delivery_fee === 0 ? "FREE" : `${sym}${newOrder.delivery_fee.toFixed(2)}`}`,
-        `💰 *TOTAL (${activeRegion.paymentLabel}): ${sym}${newOrder.total.toFixed(2)}*`,
-      ].filter(Boolean);
-      window.open(`https://wa.me{WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank", "noopener,noreferrer");
-      return newOrder;
-    } catch {
-      showToast("Could not save order. Please try again.");
-      return null;
+    if (isSupabaseConfigured && supabase) {
+      void supabase.from("store_orders").insert(newOrder);
     }
+    return newOrder;
   }
 
   async function saveProduct(item: Product, isEdit: boolean) {
@@ -221,9 +192,8 @@ export default function App() {
     setOrders(next);
     localStorage.setItem("lamaison_orders", JSON.stringify(next));
     showToast(`Order marked ${status}`);
-  }
-
-  return (
+          }
+    return (
     <div dir={LANGUAGES[lang].dir} className="min-h-screen bg-[#FAF8F5] text-[#1C1917]">
       <div className="border-b border-[#E7E2DA] bg-[#1C1917] px-4 py-2 text-xs text-[#FAF8F5]">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
@@ -311,31 +281,34 @@ export default function App() {
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {visibleProducts.map((p) => {
-              const imgs = getProductImages(p);
-              const idx = Math.min(photoIdxMap[p.id] || 0, Math.max(0, imgs.length - 1));
-              const activeImg = imgs[idx] || "";
+              const media = getProductImages(p);
+              const idx = Math.min(photoIdxMap[p.id] || 0, Math.max(0, media.length - 1));
+              const activeSrc = media[idx] || "";
               const loc = getProductText(p, lang);
 
               return (
-                                <article key={p.id} className="group flex flex-col overflow-hidden rounded-2xl border border-[#E7E2DA] bg-white shadow-2xs transition hover:-translate-y-0.5 hover:shadow-md">
+                <article key={p.id} className="group flex flex-col overflow-hidden rounded-2xl border border-[#E7E2DA] bg-white shadow-2xs transition hover:-translate-y-0.5 hover:shadow-md">
                   <div className="relative aspect-[4/3] overflow-hidden bg-[#F3EFE8]">
-                    
-                                  {activeImg ? (
-                      <img src={activeImg} alt={loc.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                    {activeSrc ? (
+                      isVideoMedia(activeSrc) ? (
+                        <video src={activeSrc} controls playsInline muted loop className="h-full w-full object-cover" />
+                      ) : (
+                        <div style={{ backgroundImage: `url(${activeSrc})` }} className="h-full w-full bg-cover bg-center transition duration-500 group-hover:scale-105" />
+                      )
                     ) : (
                       <div className="flex h-full w-full flex-col items-center justify-center text-[#A8A29E]"><ImageIcon className="h-8 w-8" /><span className="mt-1 text-[11px] font-medium">La Maison</span></div>
                     )}
 
-                    {imgs.length > 1 && (
+                    {media.length > 1 && (
                       <>
-                        <button type="button" onClick={() => stepPhoto(p.id, imgs.length, -1)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1.5 text-[#1C1917] shadow-xs hover:bg-white">
+                        <button type="button" onClick={() => stepPhoto(p.id, media.length, -1)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1.5 text-[#1C1917] shadow-xs hover:bg-white">
                           <ChevronLeft className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => stepPhoto(p.id, imgs.length, 1)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1.5 text-[#1C1917] shadow-xs hover:bg-white">
+                        <button type="button" onClick={() => stepPhoto(p.id, media.length, 1)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1.5 text-[#1C1917] shadow-xs hover:bg-white">
                           <ChevronRight className="h-4 w-4" />
                         </button>
                         <div className="absolute bottom-3 right-3 flex gap-1 rounded-full bg-black/45 px-2 py-1">
-                          {imgs.map((_, i) => (
+                          {media.map((_, i) => (
                             <button key={i} type="button" onClick={() => setPhotoIdxMap((prev) => ({ ...prev, [p.id]: i }))} className={`h-1.5 w-1.5 rounded-full ${i === idx ? "bg-white" : "bg-white/45"}`} />
                           ))}
                         </div>
@@ -361,22 +334,4 @@ export default function App() {
                 </article>
               );
             })}
-          </div>
-        )}
-      </main>
-
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} region={region} cartItems={cartItems} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onUpdateQty={updateQty} onSubmitOrder={handleOrderSubmit} />
-      <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} authed={adminAuthed} setAuthed={setAdminAuthed} region={region} onSwitchRegion={adminSwitchRegion} products={products} orders={orders} onSaveProduct={saveProduct} onDeleteProduct={deleteProduct} onUpdateOrderStatus={updateOrderStatus} onToast={showToast} />
-
-      <footer className="border-t border-[#E7E2DA] bg-white px-4 py-8 text-xs text-[#78716C]">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 sm:flex-row">
-          <p className="font-serif-brand text-lg font-bold text-[#1C1917]">La Maison</p>
-          <p>© {new Date().getFullYear()} La Maison · {activeRegion.name}</p>
-        </div>
-      </footer>
-
-      {toastMsg && <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#1C1917] px-5 py-2.5 text-xs font-semibold text-white shadow-lg">{toastMsg}</div>}
-    </div>
-  );
-            }
-        
+                  
