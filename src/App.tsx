@@ -86,19 +86,7 @@ const [logoTaps, setLogoTaps] = useState(0);
   }, []);
 
 
-          const { data: orderData } = await supabase
-            .from("store_orders")
-            .select("*")
-            .order("created_at", { ascending: false });
-          if (orderData && orderData.length > 0) {
-            setOrders(orderData as StoreOrder[]);
-            safeCache("lamaison_orders", orderData);
-          }
-        } catch {}
-      }
-    }
-    void loadStore();
-  }, []);
+          
 
 
 
