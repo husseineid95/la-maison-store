@@ -170,11 +170,22 @@ export default function App() {
     return newOrder;
   }
 
+    function safeCache(key: string, val: unknown) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+  }
+
   async function saveProduct(item: Product, isEdit: boolean) {
-    if (isSupabaseConfigured && supabase) await supabase.from("store_products").upsert(item);
-    const next = isEdit ? products.map((p) => (p.id === item.id ? item : p)) : [item, ...products];
+    const cleanItem: Product = {
+      ...item,
+      image_url: Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : (typeof item.image_url === "string" ? item.image_url : ""),
+    };
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from("store_products").upsert(cleanItem);
+      if (error) { showToast(`Save error: ${error.message}`); return; }
+    }
+    const next = isEdit ? products.map((p) => (p.id === cleanItem.id ? cleanItem : p)) : [cleanItem, ...products];
     setProducts(next);
-    localStorage.setItem("lamaison_products", JSON.stringify(next));
+    safeCache("lamaison_products", next);
     showToast(isEdit ? "Product updated" : "Product added to store");
   }
 
@@ -182,7 +193,7 @@ export default function App() {
     if (isSupabaseConfigured && supabase) await supabase.from("store_products").delete().eq("id", id);
     const next = products.filter((p) => p.id !== id);
     setProducts(next);
-    localStorage.setItem("lamaison_products", JSON.stringify(next));
+    safeCache("lamaison_products", next);
     showToast("Product removed");
   }
 
@@ -190,9 +201,10 @@ export default function App() {
     if (isSupabaseConfigured && supabase) await supabase.from("store_orders").update({ status }).eq("id", id);
     const next = orders.map((o) => (o.id === id ? { ...o, status } : o));
     setOrders(next);
-    localStorage.setItem("lamaison_orders", JSON.stringify(next));
+    safeCache("lamaison_orders", next);
     showToast(`Order marked ${status}`);
-          }
+  }
+
     return (
     <div dir={LANGUAGES[lang].dir} className="min-h-screen bg-[#FAF8F5] text-[#1C1917]">
       <div className="border-b border-[#E7E2DA] bg-[#1C1917] px-4 py-2 text-xs text-[#FAF8F5]">
