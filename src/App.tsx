@@ -256,7 +256,8 @@ const [logoTaps, setLogoTaps] = useState(0);
       <header className="sticky top-0 z-30 border-b border-[#E7E2DA] bg-[#FAF8F5]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div>
-                        <span onClick={() => { const n = logoTaps + 1; if (n >= 5) { setAdminOpen(true); setLogoTaps(0); } else setLogoTaps(n); }} className="cursor-pointer select-none font-serif-brand text-2xl font-bold tracking-tight sm:text-3xl">La Maison</span>
+                        <span onClick={() => { const n = logoTaps + 1; if (n >= 5) { setAdminOpen(true); setLogoTaps(0); } else setLogoTaps(n); }} className="cursor-pointer select-none font-serif-brand text-2xl font-bold tracking-tight sm:text-3xl">Amvisat</span>
+
 
             <span className="mx-2 hidden rounded-full bg-[#EFECE6] px-2.5 py-0.5 text-[11px] font-medium text-[#57534E] sm:inline-block">{t.tagline}</span>
           </div>
@@ -336,7 +337,8 @@ const [logoTaps, setLogoTaps] = useState(0);
                       )
 
                     ) : (
-                      <div className="flex h-full w-full flex-col items-center justify-center text-[#A8A29E]"><ImageIcon className="h-8 w-8" /><span className="mt-1 text-[11px] font-medium">La Maison</span></div>
+                      <div className="flex h-full w-full flex-col items-center justify-center text-[#A8A29E]"><ImageIcon className="h-8 w-8" /><span className="mt-1 text-[11px] font-medium">Amvisat</span>
+</div>
                     )}
 
                     {media.length > 1 && (
@@ -383,8 +385,9 @@ const [logoTaps, setLogoTaps] = useState(0);
 
       <footer className="border-t border-[#E7E2DA] bg-white px-4 py-8 text-xs text-[#78716C]">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 sm:flex-row">
-          <p className="font-serif-brand text-lg font-bold text-[#1C1917]">La Maison</p>
-          <p>© {new Date().getFullYear()} La Maison · {activeRegion.name}</p>
+          <p className="font-serif-brand text-lg font-bold text-[#1C1917]">Amvisat</p>
+<p>© {new Date().getFullYear()} Amvisat · {activeRegion.name}</p>
+
         </div>
       </footer>
 
