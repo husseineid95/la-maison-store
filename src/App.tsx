@@ -204,9 +204,8 @@ const [logoTaps, setLogoTaps] = useState(0);
     setCart({});
     showToast("Order placed successfully!");
 
-    if (isSupabaseConfigured && supabase) {
-      void supabase.from("store_orders").insert(newOrder);
-    }
+     void fetch("/api/orders", { method: "POST", body: JSON.stringify(nextOrders) });
+
     return newOrder;
   }
 
@@ -214,8 +213,8 @@ const [logoTaps, setLogoTaps] = useState(0);
     try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
   }
 
-        async function saveProduct(item: Product, isEdit: boolean) {
-    const cover = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : (item.image_url || "");
+          async function saveProduct(item: Product, isEdit: boolean) {
+    const cover = Array.isArray(item.images) && item.images.length > 0 ? item.images : (item.image_url || "");
     const cleanItem: Product = {
       ...item,
       image_url: cover,
@@ -225,37 +224,26 @@ const [logoTaps, setLogoTaps] = useState(0);
     const next = isEdit ? products.map((p) => (p.id === cleanItem.id ? cleanItem : p)) : [cleanItem, ...products];
     setProducts(next);
     safeCache("lamaison_products", next);
-    showToast(isEdit ? "Product updated!" : "Product added!");
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { error } = await supabase.from("store_products").upsert(cleanItem);
-        if (error) {
-          const { images, translations, ...coreItem } = cleanItem;
-          await supabase.from("store_products").upsert(coreItem);
-        }
-      } catch {}
-    }
+    await fetch("/api/products", { method: "POST", body: JSON.stringify(next) });
+    showToast(isEdit ? "Product updated & synced!" : "Product added & synced!");
   }
 
-
-
-
   async function deleteProduct(id: string) {
-    if (isSupabaseConfigured && supabase) await supabase.from("store_products").delete().eq("id", id);
     const next = products.filter((p) => p.id !== id);
     setProducts(next);
     safeCache("lamaison_products", next);
+    await fetch("/api/products", { method: "POST", body: JSON.stringify(next) });
     showToast("Product removed");
   }
 
   async function updateOrderStatus(id: string, status: StoreOrder["status"]) {
-    if (isSupabaseConfigured && supabase) await supabase.from("store_orders").update({ status }).eq("id", id);
     const next = orders.map((o) => (o.id === id ? { ...o, status } : o));
     setOrders(next);
     safeCache("lamaison_orders", next);
+    await fetch("/api/orders", { method: "POST", body: JSON.stringify(next) });
     showToast(`Order marked ${status}`);
   }
+
 
     return (
     <div dir={LANGUAGES[lang].dir} className="min-h-screen bg-[#FAF8F5] text-[#1C1917]">
