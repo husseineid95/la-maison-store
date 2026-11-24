@@ -178,7 +178,7 @@ const [logoTaps, setLogoTaps] = useState(0);
     try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
   }
 
-    async function saveProduct(item: Product, isEdit: boolean) {
+      async function saveProduct(item: Product, isEdit: boolean) {
     const cover = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : (item.image_url || "");
     const cleanItem: Product = {
       ...item,
@@ -189,15 +189,20 @@ const [logoTaps, setLogoTaps] = useState(0);
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from("store_products").upsert(cleanItem);
       if (error) {
-        showToast(`DB error: ${error.message}`);
-        return;
+        const { images, translations, ...coreItem } = cleanItem;
+        const retry = await supabase.from("store_products").upsert(coreItem);
+        if (retry.error) {
+          showToast(`DB error: ${retry.error.message}`);
+          return;
+        }
       }
     }
     const next = isEdit ? products.map((p) => (p.id === cleanItem.id ? cleanItem : p)) : [cleanItem, ...products];
     setProducts(next);
     safeCache("lamaison_products", next);
-    showToast(isEdit ? "Product updated" : "Product saved to cloud");
+    showToast(isEdit ? "Product updated" : "Product saved!");
   }
+
 
 
   async function deleteProduct(id: string) {
