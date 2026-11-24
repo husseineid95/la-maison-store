@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ShoppingBag, Plus, Minus, Trash2, X, CheckCircle2, MessageCircle, Image as ImageIcon } from "lucide-react";
-import { REGIONS, type Product, type RegionCode, type StoreOrder } from "./storeData";
+import { ShoppingBag, Plus, Minus, Trash2, X, CheckCircle2, Image as ImageIcon } from "lucide-react";
+import { REGIONS, isVideoMedia, type Product, type RegionCode, type StoreOrder } from "./storeData";
 
 interface CartDrawerProps {
   open: boolean;
@@ -54,12 +54,15 @@ export function CartDrawer({
 
         <div className="flex-1 overflow-y-auto p-5">
           {placedOrder ? (
-            <div className="space-y-4 rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-5 text-center">
-              <CheckCircle2 className="mx-auto h-10 w-10 text-[#16A34A]" />
+            <div className="space-y-4 rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-6 text-center">
+              <CheckCircle2 className="mx-auto h-11 w-11 text-[#16A34A]" />
               <h3 className="text-lg font-bold text-[#14532D]">Order Placed Successfully!</h3>
               <p className="text-xs leading-relaxed text-[#166534]">
-                Thank you! Your order <strong>#{placedOrder.id.slice(-6).toUpperCase()}</strong> has been submitted to La Maison. We will confirm and prepare your delivery shortly.
+                Thank you, <strong>{placedOrder.customer_name}</strong>! Your order <strong>#{placedOrder.id.slice(-6).toUpperCase()}</strong> has been sent directly to La Maison. We will prepare and confirm your delivery shortly.
               </p>
+              <button type="button" onClick={() => { setPlacedOrder(null); onClose(); }} className="mt-2 rounded-full bg-[#1C1917] px-6 py-2.5 text-xs font-bold text-white">
+                Continue Shopping
+              </button>
             </div>
           ) : cartItems.length === 0 ? (
             <div className="py-16 text-center">
@@ -72,7 +75,11 @@ export function CartDrawer({
                 {cartItems.map(({ product, qty, price }) => (
                   <div key={product.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E7E2DA] bg-[#FAF8F5] p-3">
                     {product.image_url ? (
-                      <img src={product.image_url} alt={product.name} className="h-14 w-14 rounded-lg object-cover" />
+                      isVideoMedia(product.image_url) ? (
+                        <video src={product.image_url} muted playsInline className="h-14 w-14 rounded-lg object-cover" />
+                      ) : (
+                        <img src={product.image_url} alt={product.name} className="h-14 w-14 rounded-lg object-cover" />
+                      )
                     ) : (
                       <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[#EFECE6] text-[#A8A29E]"><ImageIcon className="h-5 w-5" /></div>
                     )}
@@ -99,13 +106,13 @@ export function CartDrawer({
               <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
                 <h3 className="text-sm font-bold">Delivery Details</h3>
                 <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name *" className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
-                <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone Number (WhatsApp) *" className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
-                <input required value={city} onChange={(e) => setCity(e.target.value)} placeholder={region === "LB" ? "Region / City (e.g. Chouf, Beirut) *" : "City *"} className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
+                <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone Number *" className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
+                <input required value={city} onChange={(e) => setCity(e.target.value)} placeholder={region === "LB" ? "Region / City (e.g. Sidon, Chouf, Beirut) *" : "City *"} className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
                 <input required value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, Building, Floor *" className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
                 <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Delivery notes (optional)" className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
                 <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#1C1917] py-3.5 text-xs font-bold text-white hover:bg-[#292524] transition">
-                  <MessageCircle className="h-4 w-4 text-[#22C55E]" />
-                  {busy ? "Submitting Order..." : `Place Order (${activeRegion.paymentLabel})`}
+                  <ShoppingBag className="h-4 w-4" />
+                  {busy ? "Placing Order..." : `Place Order (${activeRegion.paymentLabel})`}
                 </button>
               </form>
             </div>
