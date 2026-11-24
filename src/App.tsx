@@ -181,7 +181,8 @@ export default function App() {
     };
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from("store_products").upsert(cleanItem);
-      if (error) { showToast(`Save error: ${error.message}`); return; }
+      if (error) { showToast(Saved locally (${error.message})); }
+(removing return; }
     }
     const next = isEdit ? products.map((p) => (p.id === cleanItem.id ? cleanItem : p)) : [cleanItem, ...products];
     setProducts(next);
