@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ShoppingBag, Search, Plus, Minus, Package, Image as ImageIcon, ChevronLeft, ChevronRight, ArrowRight, X, Check } from "lucide-react";
 import { ADMIN_CATEGORIES, INITIAL_PRODUCTS, LANGUAGES, REGIONS, detectVisitorLang, detectVisitorRegion, getProductImages, getProductText, isVideoMedia, type LangCode, type Product, type RegionCode, type StoreOrder } from "./storeData";
 import { CartDrawer } from "./CartDrawer";
-import { AdminPanel } from "./AdminPanel";
+import { AdminPanel, type HeroBannerConfig } from "./AdminPanel";
+
 
 const UI_COPY: Record<LangCode, {
   announcement: string; search: string; bag: string; all: string;
@@ -11,7 +12,8 @@ const UI_COPY: Record<LangCode, {
   emptyTitle: string; emptySub: string; addToBag: string; outOfStock: string;
   quickView: string; footerDesc: string;
 }> = {
-  en: { announcement: "Curated Home & Everyday Care", search: "Search our store...", bag: "Cart", all: "All Products", heroEyebrow: "New Season Essentials", heroTitle: "Refined living, thoughtfully simplified.", heroSub: "Discover everyday kitchenware, home care, and personal essentials designed for effortless daily routines.", heroCta: "Shop Collection", collectionsTitle: "Shop by Collection", catalogTitle: "Featured Collection", emptyTitle: "Collection arriving soon", emptySub: "New curated pieces will appear here shortly.", addToBag: "Add to cart", outOfStock: "Sold out", quickView: "View details", footerDesc: "Thoughtfully curated home, kitchen, and everyday care essentials." },
+  en: { announcement: "Curated Home & Everyday Care", search: "Search our store...", bag: "Cart", all: "All Products", heroEyebrow: "AMVISAT · HOME & DAILY CARE", heroTitle: "Thoughtful essentials for every corner of home.", heroSub: "Curated kitchenware, home care, and everyday living pieces chosen for quality, simplicity, and lasting value.",
+ heroCta: "Shop Collection", collectionsTitle: "Shop by Collection", catalogTitle: "Featured Collection", emptyTitle: "Collection arriving soon", emptySub: "New curated pieces will appear here shortly.", addToBag: "Add to cart", outOfStock: "Sold out", quickView: "View details", footerDesc: "Thoughtfully curated home, kitchen, and everyday care essentials." },
   ar: { announcement: "مستلزمات مختارة للمنزل والعناية اليومية", search: "ابحث في المتجر...", bag: "السلة", all: "جميع المنتجات", heroEyebrow: "تشكيلة الموسم الجديد", heroTitle: "حياة يومية أكثر أناقة وبساطة.", heroSub: "اكتشف مستلزمات المطبخ والمنزل والعناية اليومية المختارة بعناية لتناسب أسلوب حياتك.", heroCta: "تسوق المجموعة", collectionsTitle: "تسوق حسب القسم", catalogTitle: "المجموعة المختارة", emptyTitle: "التشكيلة قيد الإضافة", emptySub: "ستظهر المنتجات الجديدة هنا قريباً.", addToBag: "أضف إلى السلة", outOfStock: "نفذت الكمية", quickView: "التفاصيل", footerDesc: "مستلزمات منزلية ويومية مختارة بعناية وبساطة." },
   fr: { announcement: "Maison & Soins Quotidiens Sélectionnés", search: "Rechercher...", bag: "Panier", all: "Tous les produits", heroEyebrow: "Nouvelle Sélection", heroTitle: "L'essentiel du quotidien, tout en simplicité.", heroSub: "Des articles de cuisine, d'entretien et de soin pensés pour accompagner votre intérieur chaque jour.", heroCta: "Découvrir", collectionsTitle: "Collections", catalogTitle: "Notre Sélection", emptyTitle: "Collection bientôt disponible", emptySub: "De nouveaux articles apparaîtront ici prochainement.", addToBag: "Ajouter au panier", outOfStock: "Épuisé", quickView: "Voir détails", footerDesc: "Essentiels pour la maison, la cuisine et le soin quotidien." },
   de: { announcement: "Ausgewählte Haushalts- & Pflege-Essentials", search: "Suchen...", bag: "Warenkorb", all: "Alle Produkte", heroEyebrow: "Neue Auswahl", heroTitle: "Durchdachte Essentials für jeden Tag.", heroSub: "Entdecken Sie ausgewählte Küchen-, Haushalts- und Pflegeprodukte für ein harmonisches Zuhause.", heroCta: "Kollektion ansehen", collectionsTitle: "Kategorien", catalogTitle: "Ausgewählte Kollektion", emptyTitle: "Kollektion folgt in Kürze", emptySub: "Neue Artikel erscheinen hier in Kürze.", addToBag: "In den Warenkorb", outOfStock: "Ausverkauft", quickView: "Details", footerDesc: "Sorgfältig ausgewählte Produkte für Küche, Haushalt und Pflege." },
@@ -22,6 +24,17 @@ export default function App() {
   const [lang, setLang] = useState<LangCode>(() => detectVisitorLang());
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [orders, setOrders] = useState<StoreOrder[]>([]);
+    const [heroConfig, setHeroConfig] = useState<HeroBannerConfig>(() => {
+    try { return JSON.parse(localStorage.getItem("amvisat_hero") || "{}"); } catch { return {}; }
+  });
+
+  async function saveHeroConfig(next: HeroBannerConfig) {
+    setHeroConfig(next);
+    safeCache("amvisat_hero", next);
+    await fetch("/api/settings", { method: "POST", body: JSON.stringify(next) });
+    showToast("Hero banner updated!");
+  }
+  
   const [cart, setCart] = useState<Record<string, number>>({});
   const [photoIdxMap, setPhotoIdxMap] = useState<Record<string, number>>({});
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -72,6 +85,12 @@ export default function App() {
           if (Array.isArray(cloudProds) && cloudProds.length > 0) {
             setProducts(cloudProds);
             safeCache("lamaison_products", cloudProds);
+            const cfgRes = await fetch("/api/settings");
+if (cfgRes.ok) {
+  const cfg = (await cfgRes.json()) as HeroBannerConfig;
+  if (cfg && typeof cfg === "object") { setHeroConfig(cfg); safeCache("amvisat_hero", cfg); }
+}
+            
           } else if (cachedProds.length > 0) {
             await fetch("/api/products", { method: "POST", body: JSON.stringify(cachedProds) });
           }
