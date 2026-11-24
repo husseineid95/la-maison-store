@@ -1,12 +1,18 @@
 import { useState } from "react";
-import { ShoppingBag, Plus, Minus, Trash2, X, CheckCircle2, Image as ImageIcon } from "lucide-react";
-import { REGIONS, isVideoMedia, type Product, type RegionCode, type StoreOrder } from "./storeData";
+import { X, Plus, Minus, ShoppingBag, CheckCircle2, ArrowRight, Image as ImageIcon } from "lucide-react";
+import { REGIONS, getProductImages, isVideoMedia, type Product, type RegionCode, type StoreOrder } from "./storeData";
+
+interface CartItemEntry {
+  product: Product;
+  qty: number;
+  price: number;
+}
 
 interface CartDrawerProps {
   open: boolean;
   onClose: () => void;
   region: RegionCode;
-  cartItems: { product: Product; qty: number; price: number }[];
+  cartItems: CartItemEntry[];
   subtotal: number;
   deliveryFee: number;
   total: number;
@@ -14,109 +20,108 @@ interface CartDrawerProps {
   onSubmitOrder: (details: { name: string; phone: string; city: string; address: string; notes: string }) => Promise<StoreOrder | null>;
 }
 
-export function CartDrawer({
-  open, onClose, region, cartItems, subtotal, deliveryFee, total, onUpdateQty, onSubmitOrder,
-}: CartDrawerProps) {
+export function CartDrawer({ open, onClose, region, cartItems, subtotal, total, onUpdateQty, onSubmitOrder }: CartDrawerProps) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [placedOrder, setPlacedOrder] = useState<StoreOrder | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState<StoreOrder | null>(null);
 
   if (!open) return null;
   const activeRegion = REGIONS[region];
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleCheckout(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
+    if (!name.trim() || !phone.trim() || !city.trim() || !address.trim()) return;
+    setSubmitting(true);
     const created = await onSubmitOrder({ name, phone, city, address, notes });
-    setBusy(false);
+    setSubmitting(false);
     if (created) {
-      setPlacedOrder(created);
+      setCompletedOrder(created);
       setName(""); setPhone(""); setCity(""); setAddress(""); setNotes("");
     }
   }
 
+  function resetAndClose() {
+    setCompletedOrder(null);
+    onClose();
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs">
-      <div className="flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-[#E7E2DA] px-5 py-4">
-          <div>
-            <h2 className="text-xl font-bold">Your Shopping Bag</h2>
-            <p className="text-xs text-[#78716C]">{activeRegion.flag} {activeRegion.name} · {activeRegion.paymentLabel}</p>
+      <div className="flex h-full w-full max-w-md flex-col bg-white text-[#121212] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-5">
+          <div className="flex items-center gap-2.5">
+            <ShoppingBag className="h-4 w-4 text-[#121212]" />
+            <h2 className="text-base font-medium tracking-wide uppercase">Your Cart</h2>
           </div>
-          <button type="button" onClick={() => { setPlacedOrder(null); onClose(); }} className="rounded-full p-2 text-[#57534E] hover:bg-[#F3EFE8]">
-            <X className="h-5 w-5" />
-          </button>
+          <button type="button" onClick={resetAndClose} className="p-1.5 text-neutral-500 hover:text-[#121212]"><X className="h-5 w-5" /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
-          {placedOrder ? (
-            <div className="space-y-4 rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-6 text-center">
-              <CheckCircle2 className="mx-auto h-11 w-11 text-[#16A34A]" />
-              <h3 className="text-lg font-bold text-[#14532D]">Order Placed Successfully!</h3>
-              <p className="text-xs leading-relaxed text-[#166534]">
-                Thank you, <strong>{placedOrder.customer_name}</strong>! Your order <strong>#{placedOrder.id.slice(-6).toUpperCase()}</strong> has been sent directly to Amvisat.
-. We will prepare and confirm your delivery shortly.
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {completedOrder ? (
+            <div className="my-8 border border-neutral-200 bg-neutral-50 p-7 text-center">
+              <CheckCircle2 className="mx-auto h-11 w-11 text-[#121212]" />
+              <h3 className="mt-4 text-xl font-medium tracking-tight">Order Confirmed</h3>
+              <p className="mt-2 text-xs leading-relaxed text-neutral-600">
+                Reference <strong>#{completedOrder.id.slice(-6).toUpperCase()}</strong> has been sent directly to <strong>AMVISAT</strong>. We will contact you shortly at <strong>{completedOrder.customer_phone}</strong>.
               </p>
-              <button type="button" onClick={() => { setPlacedOrder(null); onClose(); }} className="mt-2 rounded-full bg-[#1C1917] px-6 py-2.5 text-xs font-bold text-white">
-                Continue Shopping
-              </button>
+              <button type="button" onClick={resetAndClose} className="mt-6 w-full bg-[#121212] py-3.5 text-xs font-medium tracking-widest text-white uppercase hover:bg-neutral-800 transition">Continue Shopping</button>
             </div>
           ) : cartItems.length === 0 ? (
-            <div className="py-16 text-center">
-              <ShoppingBag className="mx-auto h-10 w-10 text-[#D6D3D1]" />
-              <p className="mt-3 text-sm font-medium text-[#57534E]">Your bag is empty</p>
+            <div className="my-20 text-center">
+              <p className="text-base font-medium text-[#121212]">Your cart is empty</p>
+              <p className="mt-1.5 text-xs text-neutral-500">Explore our collection and add essentials to begin.</p>
             </div>
           ) : (
-            <div className="space-y-6">
-              <div className="space-y-3">
-                {cartItems.map(({ product, qty, price }) => (
-                  <div key={product.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E7E2DA] bg-[#FAF8F5] p-3">
-                    {product.image_url ? (
-                      isVideoMedia(product.image_url) ? (
-                        <video src={product.image_url} muted playsInline className="h-14 w-14 rounded-lg object-cover" />
+            <>
+              <div className="divide-y divide-neutral-200 border-b border-neutral-200 pb-4">
+                {cartItems.map(({ product, qty, price }) => {
+                  const media = getProductImages(product);
+                  const cover = media[0] || "";
+                  return (
+                    <div key={product.id} className="flex gap-4 py-4">
+                      {cover && !isVideoMedia(cover) ? (
+                        <div style={{ backgroundImage: `url(${cover})` }} className="h-20 w-20 shrink-0 border border-neutral-200 bg-white bg-contain bg-center bg-no-repeat p-1" />
                       ) : (
-                        <img src={product.image_url} alt={product.name} className="h-14 w-14 rounded-lg object-cover" />
-                      )
-                    ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[#EFECE6] text-[#A8A29E]"><ImageIcon className="h-5 w-5" /></div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-bold">{product.name}</p>
-                      <p className="text-xs text-[#78716C]">{activeRegion.symbol}{price.toFixed(2)} each</p>
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <button type="button" onClick={() => onUpdateQty(product.id, -1)} className="rounded border border-[#E7E2DA] bg-white p-1"><Minus className="h-3 w-3" /></button>
-                        <span className="text-xs font-semibold">{qty}</span>
-                        <button type="button" onClick={() => onUpdateQty(product.id, 1)} className="rounded border border-[#E7E2DA] bg-white p-1"><Plus className="h-3 w-3" /></button>
+                        <div className="flex h-20 w-20 shrink-0 items-center justify-center border border-neutral-200 bg-neutral-50 text-neutral-400"><ImageIcon className="h-5 w-5" /></div>
+                      )}
+                      <div className="flex flex-1 flex-col justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-[#121212]">{product.name}</p>
+                          <p className="mt-0.5 text-xs text-neutral-500">{activeRegion.symbol}{price.toFixed(2)}</p>
+                        </div>
+                        <div className="mt-2 inline-flex w-fit items-center border border-neutral-300">
+                          <button type="button" onClick={() => onUpdateQty(product.id, -1)} className="px-2.5 py-1 text-neutral-600 hover:text-[#121212]"><Minus className="h-3 w-3" /></button>
+                          <span className="px-3 text-xs font-medium">{qty}</span>
+                          <button type="button" onClick={() => onUpdateQty(product.id, 1)} className="px-2.5 py-1 text-neutral-600 hover:text-[#121212]"><Plus className="h-3 w-3" /></button>
+                        </div>
                       </div>
                     </div>
-                    <button type="button" onClick={() => onUpdateQty(product.id, -qty)} className="text-[#A8A29E] hover:text-[#DC2626]"><Trash2 className="h-4 w-4" /></button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <div className="space-y-1.5 rounded-xl border border-[#E7E2DA] bg-[#FAF8F5] p-4 text-xs">
-                <div className="flex justify-between text-[#57534E]"><span>Subtotal</span><span>{activeRegion.symbol}{subtotal.toFixed(2)}</span></div>
-                <div className="flex justify-between text-[#57534E]"><span>Delivery ({activeRegion.name})</span><span>{deliveryFee === 0 ? "FREE" : `${activeRegion.symbol}${deliveryFee.toFixed(2)}`}</span></div>
-                <div className="flex justify-between border-t border-[#E7E2DA] pt-2 text-sm font-bold text-[#1C1917]"><span>Total ({activeRegion.paymentLabel})</span><span>{activeRegion.symbol}{total.toFixed(2)}</span></div>
+              <div className="mt-5 space-y-2 text-xs">
+                <div className="flex justify-between text-neutral-600"><span>Subtotal</span><span>{activeRegion.symbol}{subtotal.toFixed(2)}</span></div>
+                <div className="flex justify-between border-t border-neutral-200 pt-3 text-sm font-semibold text-[#121212]"><span>Estimated Total ({activeRegion.paymentLabel})</span><span>{activeRegion.symbol}{total.toFixed(2)}</span></div>
               </div>
 
-              <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
-                <h3 className="text-sm font-bold">Delivery Details</h3>
-                <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name *" className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
-                <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone Number *" className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
-                <input required value={city} onChange={(e) => setCity(e.target.value)} placeholder={region === "LB" ? "Region / City (e.g. Sidon, Chouf, Beirut) *" : "City *"} className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
-                <input required value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, Building, Floor *" className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
-                <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Delivery notes (optional)" className="w-full rounded-xl border border-[#E7E2DA] px-3.5 py-2.5 text-xs focus:border-[#1C1917] focus:outline-none" />
-                <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#1C1917] py-3.5 text-xs font-bold text-white hover:bg-[#292524] transition">
-                  <ShoppingBag className="h-4 w-4" />
-                  {busy ? "Placing Order..." : `Place Order (${activeRegion.paymentLabel})`}
+              <form onSubmit={handleCheckout} className="mt-6 space-y-3 border-t border-neutral-200 pt-5 text-xs">
+                <h3 className="text-xs font-semibold tracking-widest text-[#121212] uppercase">Delivery Details</h3>
+                <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name *" className="w-full border border-neutral-300 bg-white px-3.5 py-3 text-xs focus:border-[#121212] focus:outline-none" />
+                <input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone Number *" className="w-full border border-neutral-300 bg-white px-3.5 py-3 text-xs focus:border-[#121212] focus:outline-none" />
+                <input required value={city} onChange={(e) => setCity(e.target.value)} placeholder="City / Region *" className="w-full border border-neutral-300 bg-white px-3.5 py-3 text-xs focus:border-[#121212] focus:outline-none" />
+                <input required value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, Building, Floor *" className="w-full border border-neutral-300 bg-white px-3.5 py-3 text-xs focus:border-[#121212] focus:outline-none" />
+                <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Order Notes (Optional)" className="w-full border border-neutral-300 bg-white px-3.5 py-3 text-xs focus:border-[#121212] focus:outline-none" />
+                <button type="submit" disabled={submitting} className="mt-2 flex w-full items-center justify-center gap-2 bg-[#121212] py-3.5 text-xs font-medium tracking-widest text-white uppercase hover:bg-neutral-800 disabled:opacity-50 transition">
+                  <span>{submitting ? "Placing Order..." : "Place Order"}</span>
+                  <ArrowRight className="h-4 w-4" />
                 </button>
               </form>
-            </div>
+            </>
           )}
         </div>
       </div>
