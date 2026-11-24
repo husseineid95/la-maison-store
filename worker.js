@@ -47,7 +47,18 @@ export default {
         return new Response(JSON.stringify({ ok: true }), { headers: cors });
       }
     }
-
+    if (url.pathname === "/api/settings") {
+      if (request.method === "GET") {
+        const data = await env.STORE_KV.get("settings");
+        return new Response(data || "{}", { headers: cors });
+      }
+      if (request.method === "POST") {
+        const body = await request.text();
+        await env.STORE_KV.put("settings", body);
+        return new Response(JSON.stringify({ ok: true }), { headers: cors });
+      }
+      }
+    
     return env.ASSETS.fetch(request);
   },
 };
