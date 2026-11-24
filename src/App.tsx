@@ -49,22 +49,28 @@ const [logoTaps, setLogoTaps] = useState(0);
     localStorage.setItem("lamaison_lang", next);
   }
 
-  useEffect(() => {
+    useEffect(() => {
     async function loadStore() {
+      const localProds = localStorage.getItem("lamaison_products");
+      if (localProds) {
+        try { setProducts(JSON.parse(localProds)); } catch {}
+      }
+      const localOrders = localStorage.getItem("lamaison_orders");
+      if (localOrders) {
+        try { setOrders(JSON.parse(localOrders)); } catch {}
+      }
       if (isSupabaseConfigured && supabase) {
-        const { data: prodData } = await supabase.from("store_products").select("*").order("created_at", { ascending: false });
-        if (prodData) setProducts(prodData as Product[]);
-        const { data: orderData } = await supabase.from("store_orders").select("*").order("created_at", { ascending: false });
-        if (orderData) setOrders(orderData as StoreOrder[]);
-      } else {
-        const localProds = localStorage.getItem("lamaison_products");
-        if (localProds) setProducts(JSON.parse(localProds));
-        const localOrders = localStorage.getItem("lamaison_orders");
-        if (localOrders) setOrders(JSON.parse(localOrders));
+        try {
+          const { data: prodData } = await supabase.from("store_products").select("*").order("created_at", { ascending: false });
+          if (prodData && prodData.length > 0) setProducts(prodData as Product[]);
+          const { data: orderData } = await supabase.from("store_orders").select("*").order("created_at", { ascending: false });
+          if (orderData && orderData.length > 0) setOrders(orderData as StoreOrder[]);
+        } catch {}
       }
     }
     void loadStore();
   }, []);
+
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
