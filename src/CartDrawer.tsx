@@ -58,7 +58,8 @@ export function CartDrawer({
               <CheckCircle2 className="mx-auto h-11 w-11 text-[#16A34A]" />
               <h3 className="text-lg font-bold text-[#14532D]">Order Placed Successfully!</h3>
               <p className="text-xs leading-relaxed text-[#166534]">
-                Thank you, <strong>{placedOrder.customer_name}</strong>! Your order <strong>#{placedOrder.id.slice(-6).toUpperCase()}</strong> has been sent directly to La Maison. We will prepare and confirm your delivery shortly.
+                Thank you, <strong>{placedOrder.customer_name}</strong>! Your order <strong>#{placedOrder.id.slice(-6).toUpperCase()}</strong> has been sent directly to Amvisat.
+. We will prepare and confirm your delivery shortly.
               </p>
               <button type="button" onClick={() => { setPlacedOrder(null); onClose(); }} className="mt-2 rounded-full bg-[#1C1917] px-6 py-2.5 text-xs font-bold text-white">
                 Continue Shopping
