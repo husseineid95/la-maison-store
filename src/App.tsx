@@ -74,14 +74,24 @@ const [logoTaps, setLogoTaps] = useState(0);
             if (prodData.length > 0) {
               setProducts(prodData as Product[]);
               safeCache("lamaison_products", prodData);
-            } else if (cachedProds.length > 0) {
+                        } else if (cachedProds.length > 0) {
+              let syncedCount = 0;
+              let lastErr = "";
               for (const item of cachedProds) {
                 const { images, translations, ...coreItem } = item;
                 const res = await supabase.from("store_products").upsert(item);
-                if (res.error) await supabase.from("store_products").upsert(coreItem);
+                if (!res.error) {
+                  syncedCount++;
+                } else {
+                  const retry = await supabase.from("store_products").upsert(coreItem);
+                  if (!retry.error) syncedCount++;
+                  else lastErr = retry.error.message;
+                }
               }
-              showToast("Synced tablet products to cloud!");
+              if (syncedCount > 0) showToast(`Synced ${syncedCount} product(s) to cloud!`);
+              else if (lastErr) showToast(`Sync issue: ${lastErr}`);
             }
+
           }
 
           const { data: orderData } = await supabase
