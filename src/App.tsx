@@ -212,7 +212,8 @@ const [logoTaps, setLogoTaps] = useState(0);
     const next = isEdit ? products.map((p) => (p.id === cleanItem.id ? cleanItem : p)) : [cleanItem, ...products];
     setProducts(next);
     safeCache("lamaison_products", next);
-    await fetch("/api/products", { method: "POST", body: JSON.stringify(next) });
+     await fetch("/api/products", { method: "POST", body: JSON.stringify(cleanItem) });
+
     showToast(isEdit ? "Product updated & synced!" : "Product added & synced!");
   }
 
@@ -220,7 +221,8 @@ const [logoTaps, setLogoTaps] = useState(0);
     const next = products.filter((p) => p.id !== id);
     setProducts(next);
     safeCache("lamaison_products", next);
-    await fetch("/api/products", { method: "POST", body: JSON.stringify(next) });
+     await fetch(`/api/products?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+
     showToast("Product removed");
   }
 
