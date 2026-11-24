@@ -6,5 +6,11 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
-  }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "STORE_KV",
+      "id": "c10dc6b6242546358beca858348e076f"
+    }
+  ]
 }
