@@ -22,7 +22,7 @@ interface CartDrawerProps {
   onSubmitOrder: (details: { name: string; phone: string; city: string; address: string; notes: string }) => Promise<StoreOrder | null>;
 }
 
-function buildWhatsAppUrl(order: StoreOrder): string {
+function buildWhatsAppUrl(order: StoreOrder, directApp = false): string {
   const sym = order.currency === "EUR" ? "€" : "$";
   const ref = order.id.slice(-6).toUpperCase();
   const itemLines = order.items.map(
@@ -39,11 +39,13 @@ function buildWhatsAppUrl(order: StoreOrder): string {
     "Address: " + order.city + ", " + order.address,
     order.notes ? "Notes: " + order.notes : "",
   ].filter(Boolean);
-  const params = new URLSearchParams();
-  params.set("phone", "96181428535");
-  params.set("text", lines.join("\n"));
-    return ["https://wa.me", "96181428535"].join("/") + "?text=" + encodeURIComponent(lines.join("\n"));
+  const query = "phone=96181428535&text=" + encodeURIComponent(lines.join("\n"));
+  if (directApp) {
+    return "whatsapp://send?" + query;
+  }
+  return ["https://wa.me", "96181428535"].join("/") + "?text=" + encodeURIComponent(lines.join("\n"));
 }
+
 
 
 export function CartDrawer({ open, onClose, region, cartItems, subtotal, total, onUpdateQty, onSubmitOrder }: CartDrawerProps) {
@@ -64,9 +66,11 @@ export function CartDrawer({ open, onClose, region, cartItems, subtotal, total, 
     setSubmitting(true);
     const created = await onSubmitOrder({ name, phone, city, address, notes });
     setSubmitting(false);
-    if (created) {
+        if (created) {
       setCompletedOrder(created);
       setName(""); setPhone(""); setCity(""); setAddress(""); setNotes("");
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      window.location.href = buildWhatsAppUrl(created, isMobile);
     }
   }
 
