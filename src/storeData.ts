@@ -58,8 +58,9 @@ export interface Product {
   name: string;
   category: ProductCategory;
   description: string;
-  price_lb: number;
+    price_lb: number;
   price_eu: number;
+  stock_qty?: number;
   image_url: string;
   images?: string[];
   translations?: Partial<Record<LangCode, LocalizedText>>;
