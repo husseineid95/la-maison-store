@@ -25,18 +25,21 @@ interface CartDrawerProps {
 function buildWhatsAppUrl(order: StoreOrder): string {
   const sym = order.currency === "EUR" ? "€" : "$";
   const ref = order.id.slice(-6).toUpperCase();
+  const itemLines = order.items.map(
+    (it) => "• " + it.name + " x" + it.qty + " (" + sym + (it.unitPrice * it.qty).toFixed(2) + ")"
+  );
   const lines = [
-    `Hello AMVISAT! I just placed order #${ref}:`,
-    ``,
-    ...order.items.map((it) => `• ${it.name} x${it.qty} (${sym}${(it.unitPrice * it.qty).toFixed(2)})`),
-    ``,
-    `Subtotal: ${sym}${order.subtotal.toFixed(2)} (+ delivery)`,
-    `Name: ${order.customer_name}`,
-    `Phone: ${order.customer_phone}`,
-    `Address: ${order.city}, ${order.address}`,
-    order.notes ? `Notes: ${order.notes}` : "",
+    "Hello AMVISAT! I just placed order #" + ref + ":",
+    "",
+    ...itemLines,
+    "",
+    "Subtotal: " + sym + order.subtotal.toFixed(2) + " (+ delivery)",
+    "Name: " + order.customer_name,
+    "Phone: " + order.customer_phone,
+    "Address: " + order.city + ", " + order.address,
+    order.notes ? "Notes: " + order.notes : "",
   ].filter(Boolean);
-  return `https://wa.me{WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`;
+  return "https://wa.me" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(lines.join("\n"));
 }
 
 export function CartDrawer({ open, onClose, region, cartItems, subtotal, total, onUpdateQty, onSubmitOrder }: CartDrawerProps) {
