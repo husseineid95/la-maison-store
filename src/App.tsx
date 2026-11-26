@@ -545,9 +545,13 @@ export default function App() {
                   <p className="text-[10px] font-semibold tracking-widest text-neutral-400 uppercase">{quickProduct.category}</p>
                   <h2 style={{ fontFamily: "'Cormorant Garamond', serif" }} className="mt-1.5 text-3xl font-semibold text-[#121212]">{qLoc.name}</h2>
                   <p className="mt-2 text-lg font-semibold text-[#121212]">{activeRegion.symbol}{unitPrice(quickProduct).toFixed(2)}</p>
-                  {typeof quickProduct.stock_qty === "number" && (
+                                    {typeof quickProduct.stock_qty === "number" && (
                     <p className={`mt-1.5 text-xs font-semibold ${!qAvail ? "text-red-600" : quickProduct.stock_qty <= 5 ? "text-amber-700" : "text-emerald-700"}`}>
-                                                <p className="mt-4 text-xs leading-relaxed text-neutral-600">{qLoc.description}</p>
+                      {!qAvail ? t.outOfStock : `${quickProduct.stock_qty} ${quickProduct.stock_qty <= 5 ? t.onlyLeftLabel : t.inStockLabel}`}
+                    </p>
+                  )}
+                  <p className="mt-4 text-xs leading-relaxed text-neutral-600">{qLoc.description}</p>
+
                 </div>
                 <div className="mt-6 space-y-3 border-t border-neutral-200 pt-5">
                   <div className="inline-flex items-center border border-neutral-300">
