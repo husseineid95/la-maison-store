@@ -1,6 +1,5 @@
-<svg xmlns="http://w3.org" viewBox="0 0 512 512" width="512" height="512">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://w3.org" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="96" fill="#121212"/>
-  <rect x="36" y="36" width="440" height="440" rx="72" fill="none" stroke="#F6F5F3" stroke-width="8"/>
-  <text x="256" y="295" text-anchor="middle" font-family="Georgia, serif" font-size="250" font-weight="600" fill="#F6F5F3">A</text>
-  <text x="256" y="405" text-anchor="middle" font-family="system-ui, sans-serif" font-size="36" font-weight="700" letter-spacing="8" fill="#F6F5F3">AMVISAT</text>
+  <path d="M256 120L148 392h38l30-78h80l30 78h38L256 120zm-26 160l26-68 26 68h-52z" fill="#F6F5F3"/>
 </svg>
