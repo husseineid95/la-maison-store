@@ -239,7 +239,7 @@ export function AdminPanel({
                   <div className="space-y-2.5">
                     {products.length === 0 ? <p className="py-8 text-center text-xs text-[#78716C]">No products added yet. Add your first item using the form!</p> : products.map((prod) => {
                       const media = getProductImages(prod);
-                      const cover = media || "";
+                      const cover = media.at(0) || "";
                       return (
                         <div key={prod.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#E7E2DA] p-3 text-xs">
                           {cover ? (
