@@ -55,13 +55,7 @@ const UI_COPY: Record<LangCode, {
 };
 
 export default function App() {
-  const [region, setRegion] = useState<RegionCode>(() => {
-    try {
-      const saved = localStorage.getItem("amvisat_region") as RegionCode | null;
-      if (saved && saved in REGIONS) return saved;
-    } catch {}
-    return detectVisitorRegion();
-  });
+  const [region, setRegion] = useState<RegionCode>(() => detectVisitorRegion());
   const [lang, setLang] = useState<LangCode>(() => detectVisitorLang());
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [orders, setOrders] = useState<StoreOrder[]>([]);
@@ -85,7 +79,8 @@ export default function App() {
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [logoTaps, setLogoTaps] = useState(0);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-    const activeRegion = REGIONS[region];
+
+  const activeRegion = REGIONS[region];
   const t = UI_COPY[lang];
 
   function showToast(msg: string) {
@@ -102,12 +97,11 @@ export default function App() {
     try { localStorage.setItem("lamaison_lang", next); } catch {}
   }
 
-  function switchRegion(next: RegionCode) {
+  function adminSwitchRegion(next: RegionCode) {
     setRegion(next);
     setSelectedCategory("All");
     setCart({});
-    try { localStorage.setItem("amvisat_region", next); } catch {}
-    showToast(`${REGIONS[next].flag} ${REGIONS[next].name} (${REGIONS[next].currency})`);
+    showToast("Previewing " + REGIONS[next].flag + " " + REGIONS[next].name);
   }
 
   async function saveHeroConfig(next: HeroBannerConfig) {
@@ -119,6 +113,16 @@ export default function App() {
 
   useEffect(() => {
     async function loadStore() {
+      try {
+        const regRes = await fetch("/api/region");
+        if (regRes.ok) {
+          const regData = (await regRes.json()) as { region?: RegionCode };
+          if (regData.region && regData.region in REGIONS) {
+            setRegion(regData.region);
+          }
+        }
+      } catch {}
+
       let cachedProds: Product[] = [];
       const localProds = localStorage.getItem("lamaison_products");
       if (localProds) {
@@ -159,8 +163,7 @@ export default function App() {
     }
     void loadStore();
   }, []);
-
-  function unitPrice(p: Product) {
+                          function unitPrice(p: Product) {
     return region === "LB" ? Number(p.price_lb) : Number(p.price_eu);
   }
 
@@ -196,7 +199,8 @@ export default function App() {
     }
     return filtered;
   }, [regionProducts, selectedCategory, search, lang, onlyInStock, sortBy, region]);
-                                     const cartItems = useMemo(() => {
+
+  const cartItems = useMemo(() => {
     return Object.entries(cart)
       .map(([id, qty]) => {
         const product = products.find((p) => p.id === id);
@@ -314,23 +318,14 @@ export default function App() {
           return (
     <div dir={LANGUAGES[lang].dir} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }} className="min-h-screen bg-white text-[#121212]">
       <div className="border-b border-neutral-200 bg-[#121212] px-4 py-2 text-[11px] tracking-widest text-white uppercase">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
           <p className="truncate font-medium">{t.announcement}</p>
-          <div className="flex shrink-0 items-center gap-3">
-            <div className="flex items-center gap-1 border-r border-neutral-700 pr-2.5">
-              {(["LB", "FR", "DE"] as RegionCode[]).map((code) => (
-                <button key={code} type="button" onClick={() => switchRegion(code)} className={`px-1.5 py-0.5 text-[10px] font-semibold transition ${region === code ? "bg-white text-[#121212]" : "text-neutral-300 hover:text-white"}`}>
-                  {REGIONS[code].flag} {code}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-1">
-              {(["en", "ar", "fr", "de"] as LangCode[]).map((code) => (
-                <button key={code} type="button" onClick={() => changeLang(code)} className={`px-2 py-0.5 text-[10px] font-semibold transition ${lang === code ? "bg-white text-[#121212]" : "text-neutral-300 hover:text-white"}`}>
-                  {LANGUAGES[code].label}
-                </button>
-              ))}
-            </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {(["en", "ar", "fr", "de"] as LangCode[]).map((code) => (
+              <button key={code} type="button" onClick={() => changeLang(code)} className={`px-2 py-0.5 text-[10px] font-semibold transition ${lang === code ? "bg-white text-[#121212]" : "text-neutral-300 hover:text-white"}`}>
+                {LANGUAGES[code].label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -405,7 +400,8 @@ export default function App() {
           </div>
         </section>
       )}
-            <main id="catalog" className="mx-auto max-w-7xl px-4 py-12 sm:px-8">
+
+      <main id="catalog" className="mx-auto max-w-7xl px-4 py-12 sm:px-8">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 pb-4">
           <div className="flex items-baseline gap-3">
             <h2 style={{ fontFamily: "'Cormorant Garamond', serif" }} className="text-2xl font-semibold tracking-tight text-[#121212] sm:text-3xl">
@@ -433,8 +429,7 @@ export default function App() {
             </select>
           </div>
         </div>
-
-        {visibleProducts.length === 0 ? (
+                        {visibleProducts.length === 0 ? (
           <div className="border border-neutral-200 bg-[#F6F5F3] px-6 py-16 text-center">
             <Package className="mx-auto h-8 w-8 text-neutral-400"></Package>
             <p className="mt-3 text-sm font-medium text-[#121212]">{t.emptyTitle}</p>
@@ -531,9 +526,9 @@ export default function App() {
       })()}
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} region={region} cartItems={cartItems} subtotal={subtotal} deliveryFee={deliveryFee} total={total} onUpdateQty={updateQty} onSubmitOrder={handleOrderSubmit}></CartDrawer>
-      <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} authed={adminAuthed} setAuthed={setAdminAuthed} region={region} onSwitchRegion={switchRegion} products={products} orders={orders} heroConfig={heroConfig} onSaveHero={saveHeroConfig} onSaveProduct={saveProduct} onDeleteProduct={deleteProduct} onUpdateOrderStatus={updateOrderStatus} onDeleteOrder={deleteOrder} onToast={showToast}></AdminPanel>
+      <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} authed={adminAuthed} setAuthed={setAdminAuthed} region={region} onSwitchRegion={adminSwitchRegion} products={products} orders={orders} heroConfig={heroConfig} onSaveHero={saveHeroConfig} onSaveProduct={saveProduct} onDeleteProduct={deleteProduct} onUpdateOrderStatus={updateOrderStatus} onDeleteOrder={deleteOrder} onToast={showToast}></AdminPanel>
 
-                          <div role="contentinfo" className="border-t border-neutral-200 bg-[#F6F5F3] px-4 py-12 text-xs text-neutral-600 sm:px-8">
+      <div role="contentinfo" className="border-t border-neutral-200 bg-[#F6F5F3] px-4 py-12 text-xs text-neutral-600 sm:px-8">
         <div className="mx-auto grid max-w-7xl gap-8 sm:grid-cols-2">
           <div>
             <p style={{ fontFamily: "'Cormorant Garamond', serif" }} className="text-2xl font-semibold tracking-[0.22em] text-[#121212] uppercase">AMVISAT</p>
@@ -549,4 +544,4 @@ export default function App() {
       {toastMsg && <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 bg-[#121212] px-5 py-3 text-xs font-medium tracking-wider text-white uppercase shadow-lg">{toastMsg}</div>}
     </div>
   );
-}
+                    }
