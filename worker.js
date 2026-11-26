@@ -43,10 +43,52 @@ export default {
       }
       if (request.method === "POST") {
         const body = await request.text();
+        const prevRaw = await env.STORE_KV.get("orders");
+        const prevList = prevRaw ? JSON.parse(prevRaw) : [];
+        const nextList = JSON.parse(body);
+
         await env.STORE_KV.put("orders", body);
+
+        // Optional instant Telegram alert when a brand-new order is added
+        if (
+          Array.isArray(nextList) &&
+          nextList.length > prevList.length &&
+          env.TELEGRAM_BOT_TOKEN &&
+          env.TELEGRAM_CHAT_ID
+        ) {
+          const newest = nextList[0];
+          const sym = newest.currency === "EUR" ? "€" : "$";
+          const itemLines = (newest.items || [])
+            .map((it) => `• ${it.name} x${it.qty} (${sym}${(it.unitPrice * it.qty).toFixed(2)})`)
+            .join("\n");
+          const msg = [
+            `🛍️ *New AMVISAT Order* #${String(newest.id || "").slice(-6).toUpperCase()}`,
+            `👤 ${newest.customer_name} (${newest.customer_phone})`,
+            `📍 ${newest.city}, ${newest.address}`,
+            newest.notes ? `📝 ${newest.notes}` : "",
+            ``,
+            itemLines,
+            ``,
+            `💰 *Subtotal:* ${sym}${Number(newest.subtotal || 0).toFixed(2)} (+ delivery)`,
+          ]
+            .filter(Boolean)
+            .join("\n");
+
+          await fetch(`https://telegram.org{env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: env.TELEGRAM_CHAT_ID,
+              text: msg,
+              parse_mode: "Markdown",
+            }),
+          }).catch(() => {});
+        }
+
         return new Response(JSON.stringify({ ok: true }), { headers: cors });
       }
     }
+
     if (url.pathname === "/api/settings") {
       if (request.method === "GET") {
         const data = await env.STORE_KV.get("settings");
@@ -57,8 +99,8 @@ export default {
         await env.STORE_KV.put("settings", body);
         return new Response(JSON.stringify({ ok: true }), { headers: cors });
       }
-      }
-    
+    }
+
     return env.ASSETS.fetch(request);
   },
 };
