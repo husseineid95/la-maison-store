@@ -39,8 +39,12 @@ function buildWhatsAppUrl(order: StoreOrder): string {
     "Address: " + order.city + ", " + order.address,
     order.notes ? "Notes: " + order.notes : "",
   ].filter(Boolean);
-  return "https://wa.me" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(lines.join("\n"));
+  const params = new URLSearchParams();
+  params.set("phone", "96181428535");
+  params.set("text", lines.join("\n"));
+  return "https://whatsapp.com?" + params.toString();
 }
+
 
 export function CartDrawer({ open, onClose, region, cartItems, subtotal, total, onUpdateQty, onSubmitOrder }: CartDrawerProps) {
   const [name, setName] = useState("");
