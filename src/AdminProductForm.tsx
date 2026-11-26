@@ -64,7 +64,8 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
       setPTrans((prev) => ({ ...prev, [editLang]: { ...(prev[editLang] || {}), [field]: val } }));
     }
   }
-    async function handleMediaFiles(files: FileList | null) {
+
+  async function handleMediaFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     setUploading(true);
     const added: string[] = [];
@@ -110,8 +111,7 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
     setUploading(false);
     if (added.length > 0) onToast(`${added.length} file${added.length > 1 ? "s" : ""} attached`);
   }
-
-  function addMediaUrl() {
+    function addMediaUrl() {
     if (!pUrlInput.trim()) return;
     setPMedia((prev) => [...prev, pUrlInput.trim()]);
     setPUrlInput("");
@@ -133,10 +133,10 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
       id: editingProduct?.id || `prod-${Date.now()}`,
       name: pName.trim(),
       category: pCat,
-      description: pDesc.trim() || "Curated quality essential from La Maison.",
+      description: pDesc.trim() || "Thoughtfully curated home & everyday essential from AMVISAT.",
       price_lb: Number(pPriceLb),
       price_eu: Number(pPriceEu || pPriceLb),
-      image_url: pMedia[0] || "",
+      image_url: pMedia || "",
       images: pMedia,
       translations: pTrans,
       regions: pRegions,
@@ -171,18 +171,17 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
         <input required type="number" step="0.01" value={pPriceLb} onChange={(e) => setPPriceLb(e.target.value)} placeholder="Lebanon Price ($ USD) *" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
         <input type="number" step="0.01" value={pPriceEu} onChange={(e) => setPPriceEu(e.target.value)} placeholder="France/Germany (€ EUR)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
       </div>
-
-      <div className="space-y-2 rounded-xl border border-[#E7E2DA] bg-white p-3">
+            <div className="space-y-2 rounded-xl border border-[#E7E2DA] bg-white p-3">
         <div className="flex items-center justify-between gap-2">
           <span className="font-semibold text-[#57534E]">Photos & Videos ({pMedia.length})</span>
           <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#1C1917] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#292524]">
-            <Upload className="h-3.5 w-3.5" />
+            <Upload className="h-3.5 w-3.5"></Upload>
             <span>{uploading ? "Uploading..." : "Photos / Videos"}</span>
-            <input type="file" accept="image/*,video/*" multiple disabled={uploading} onChange={(e) => void handleMediaFiles(e.target.files)} className="hidden" />
+            <input type="file" accept="image/*,video/*" multiple disabled={uploading} onChange={(e) => void handleMediaFiles(e.target.files)} className="hidden"></input>
           </label>
         </div>
         <div className="flex gap-1.5">
-          <input value={pUrlInput} onChange={(e) => setPUrlInput(e.target.value)} placeholder="Or paste photo/video URL (https://...)" className="flex-1 rounded-lg border border-[#E7E2DA] px-2.5 py-1.5 text-[11px]" />
+          <input value={pUrlInput} onChange={(e) => setPUrlInput(e.target.value)} placeholder="Or paste photo/video URL (https://...)" className="flex-1 rounded-lg border border-[#E7E2DA] px-2.5 py-1.5 text-[11px]"></input>
           <button type="button" onClick={addMediaUrl} className="rounded-lg border border-[#E7E2DA] px-2.5 py-1.5 text-[11px] font-semibold">Add URL</button>
         </div>
         {pMedia.length > 0 && (
@@ -191,21 +190,21 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
               <div key={idx} className="relative aspect-square overflow-hidden rounded-lg border border-[#E7E2DA] bg-black">
                 {isVideoMedia(src) ? (
                   <>
-                    <video src={src} muted playsInline className="h-full w-full object-cover" />
-                    <span className="absolute right-1 bottom-1 rounded bg-black/75 p-0.5 text-white"><Film className="h-2.5 w-2.5" /></span>
+                    <video src={src} muted playsInline className="h-full w-full object-cover"></video>
+                    <span className="absolute right-1 bottom-1 rounded bg-black/75 p-0.5 text-white"><Film className="h-2.5 w-2.5"></Film></span>
                   </>
                 ) : (
-                  <div style={{ backgroundImage: `url(${src})` }} className="h-full w-full bg-cover bg-center" />
+                  <img src={src} alt="" className="h-full w-full object-cover"></img>
                 )}
-                {idx === 0 ? <span className="absolute bottom-1 left-1 rounded bg-[#1C1917]/85 px-1.5 py-0.5 text-[9px] font-bold text-white">Cover</span> : <button type="button" onClick={() => makeCover(idx)} className="absolute bottom-1 left-1 rounded bg-white/90 p-1 text-[#1C1917]"><Star className="h-2.5 w-2.5" /></button>}
-                <button type="button" onClick={() => removeMedia(idx)} className="absolute right-1 top-1 rounded bg-[#DC2626] p-1 text-white"><X className="h-2.5 w-2.5" /></button>
+                {idx === 0 ? <span className="absolute bottom-1 left-1 rounded bg-[#1C1917]/85 px-1.5 py-0.5 text-[9px] font-bold text-white">Cover</span> : <button type="button" onClick={() => makeCover(idx)} className="absolute bottom-1 left-1 rounded bg-white/90 p-1 text-[#1C1917]"><Star className="h-2.5 w-2.5"></Star></button>}
+                <button type="button" onClick={() => removeMedia(idx)} className="absolute right-1 top-1 rounded bg-[#DC2626] p-1 text-white"><X className="h-2.5 w-2.5"></X></button>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <input value={pBadge} onChange={(e) => setPBadge(e.target.value)} placeholder="Badge (optional, e.g. Best Seller, New)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2" />
+      <input value={pBadge} onChange={(e) => setPBadge(e.target.value)} placeholder="Badge (optional, e.g. Best Seller, New)" className="w-full rounded-xl border border-[#E7E2DA] bg-white px-3 py-2"></input>
 
       <div>
         <p className="mb-1.5 font-semibold text-[#57534E]">Visible Countries:</p>
@@ -216,7 +215,7 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
         </div>
       </div>
 
-      <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={pInStock} onChange={(e) => setPInStock(e.target.checked)} /> In Stock & Available</label>
+      <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={pInStock} onChange={(e) => setPInStock(e.target.checked)}></input> In Stock & Available</label>
 
       <div className="flex gap-2 pt-1">
         <button type="submit" disabled={uploading} className="flex-1 rounded-full bg-[#1C1917] py-2.5 font-bold text-white disabled:opacity-50">{editingProduct ? "Update Product" : "Add Product"}</button>
@@ -224,5 +223,4 @@ export function AdminProductForm({ editingProduct, onCancelEdit, onSaveProduct, 
       </div>
     </form>
   );
-              }
-            
+}
