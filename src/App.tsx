@@ -11,6 +11,7 @@ const UI_COPY: Record<LangCode, {
   emptyTitle: string; emptySub: string; addToBag: string; outOfStock: string;
   quickView: string; footerDesc: string;
   sortFeatured: string; sortPriceAsc: string; sortPriceDesc: string; inStockOnly: string;
+  inStockLabel: string; onlyLeftLabel: string;
 }> = {
   en: {
     announcement: "Curated Home & Everyday Care", search: "Search our store...", bag: "Cart", all: "All Products",
@@ -21,6 +22,7 @@ const UI_COPY: Record<LangCode, {
     addToBag: "Add to cart", outOfStock: "Sold out", quickView: "View details",
     footerDesc: "Thoughtfully curated home, kitchen, and everyday care essentials.",
     sortFeatured: "Sort: Featured", sortPriceAsc: "Price: Low to High", sortPriceDesc: "Price: High to Low", inStockOnly: "In stock only",
+    inStockLabel: "in stock", onlyLeftLabel: "left in stock",
   },
   ar: {
     announcement: "مستلزمات مختارة للمنزل والعناية اليومية", search: "ابحث في المتجر...", bag: "السلة", all: "جميع المنتجات",
@@ -31,6 +33,7 @@ const UI_COPY: Record<LangCode, {
     addToBag: "أضف إلى السلة", outOfStock: "نفذت الكمية", quickView: "التفاصيل",
     footerDesc: "مستلزمات منزلية ويومية مختارة بعناية وبساطة.",
     sortFeatured: "الترتيب: المميز", sortPriceAsc: "السعر: من الأقل للأعلى", sortPriceDesc: "السعر: من الأعلى للأقل", inStockOnly: "المتوفر فقط",
+    inStockLabel: "متوفر", onlyLeftLabel: "متبقي فقط",
   },
   fr: {
     announcement: "Maison & Soins Quotidiens Sélectionnés", search: "Rechercher...", bag: "Panier", all: "Tous les produits",
@@ -41,6 +44,7 @@ const UI_COPY: Record<LangCode, {
     addToBag: "Ajouter au panier", outOfStock: "Épuisé", quickView: "Voir détails",
     footerDesc: "Essentiels pour la maison, la cuisine et le soin quotidien.",
     sortFeatured: "Trier : En vedette", sortPriceAsc: "Prix : Croissant", sortPriceDesc: "Prix : Décroissant", inStockOnly: "En stock uniquement",
+    inStockLabel: "en stock", onlyLeftLabel: "restants",
   },
   de: {
     announcement: "Ausgewählte Haushalts- & Pflege-Essentials", search: "Suchen...", bag: "Warenkorb", all: "Alle Produkte",
@@ -51,9 +55,9 @@ const UI_COPY: Record<LangCode, {
     addToBag: "In den Warenkorb", outOfStock: "Ausverkauft", quickView: "Details",
     footerDesc: "Sorgfältig ausgewählte Produkte für Küche, Haushalt und Pflege.",
     sortFeatured: "Sortieren: Empfohlen", sortPriceAsc: "Preis: Aufsteigend", sortPriceDesc: "Preis: Absteigend", inStockOnly: "Nur auf Lager",
+    inStockLabel: "auf Lager", onlyLeftLabel: "übrig",
   },
 };
-
 export default function App() {
   const [region, setRegion] = useState<RegionCode>(() => detectVisitorRegion());
   const [lang, setLang] = useState<LangCode>(() => detectVisitorLang());
@@ -163,8 +167,15 @@ export default function App() {
     }
     void loadStore();
   }, []);
-                          function unitPrice(p: Product) {
+
+  function unitPrice(p: Product) {
     return region === "LB" ? Number(p.price_lb) : Number(p.price_eu);
+  }
+
+  function isAvailable(p: Product) {
+    if (!p.in_stock) return false;
+    if (typeof p.stock_qty === "number" && p.stock_qty <= 0) return false;
+    return true;
   }
 
   const regionProducts = useMemo(() => products.filter((p) => p.regions.includes(region)), [products, region]);
@@ -176,7 +187,7 @@ export default function App() {
 
   const visibleProducts = useMemo(() => {
     const filtered = regionProducts.filter((p) => {
-      if (onlyInStock && !p.in_stock) return false;
+      if (onlyInStock && !isAvailable(p)) return false;
       if (selectedCategory !== "All" && p.category !== selectedCategory) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -191,12 +202,8 @@ export default function App() {
       return true;
     });
 
-    if (sortBy === "price-asc") {
-      return [...filtered].sort((a, b) => unitPrice(a) - unitPrice(b));
-    }
-    if (sortBy === "price-desc") {
-      return [...filtered].sort((a, b) => unitPrice(b) - unitPrice(a));
-    }
+    if (sortBy === "price-asc") return [...filtered].sort((a, b) => unitPrice(a) - unitPrice(b));
+    if (sortBy === "price-desc") return [...filtered].sort((a, b) => unitPrice(b) - unitPrice(a));
     return filtered;
   }, [regionProducts, selectedCategory, search, lang, onlyInStock, sortBy, region]);
 
@@ -215,13 +222,24 @@ export default function App() {
   const cartCount = cartItems.reduce((sum, item) => sum + item.qty, 0);
 
   function addToCart(id: string, amount = 1) {
-    setCart((prev) => ({ ...prev, [id]: (prev[id] || 0) + amount }));
+    const prod = products.find((p) => p.id === id);
+    if (!prod || !isAvailable(prod)) return;
+    const maxAllowed = typeof prod.stock_qty === "number" ? prod.stock_qty : 999;
+    const current = cart[id] || 0;
+    if (current + amount > maxAllowed) {
+      showToast(`Only ${maxAllowed} available in stock`);
+      setCart((prev) => ({ ...prev, [id]: maxAllowed }));
+      return;
+    }
+    setCart((prev) => ({ ...prev, [id]: current + amount }));
     showToast("Added to cart");
   }
 
   function updateQty(id: string, delta: number) {
+    const prod = products.find((p) => p.id === id);
+    const maxAllowed = prod && typeof prod.stock_qty === "number" ? prod.stock_qty : 999;
     setCart((prev) => {
-      const nextQty = (prev[id] || 0) + delta;
+      const nextQty = Math.min(maxAllowed, (prev[id] || 0) + delta);
       if (nextQty <= 0) { const copy = { ...prev }; delete copy[id]; return copy; }
       return { ...prev, [id]: nextQty };
     });
@@ -254,6 +272,16 @@ export default function App() {
       status: "pending",
     };
 
+    const updatedProducts = products.map((p) => {
+      const ordered = cartItems.find((c) => c.product.id === p.id);
+      if (!ordered || typeof p.stock_qty !== "number") return p;
+      const remaining = Math.max(0, p.stock_qty - ordered.qty);
+      return { ...p, stock_qty: remaining, in_stock: remaining > 0 };
+    });
+    setProducts(updatedProducts);
+    safeCache("lamaison_products", updatedProducts);
+    void fetch("/api/products", { method: "POST", body: JSON.stringify(updatedProducts) });
+
     const nextOrders = [newOrder, ...orders];
     setOrders(nextOrders);
     safeCache("lamaison_orders", nextOrders);
@@ -261,10 +289,9 @@ export default function App() {
     setCart({});
     showToast("Order placed!");
     return newOrder;
-  }
-
-  async function saveProduct(item: Product, isEdit: boolean) {
-    const cover = Array.isArray(item.images) && item.images.length > 0 ? item.images : (item.image_url || "");
+      }
+            async function saveProduct(item: Product, isEdit: boolean) {
+    const cover = Array.isArray(item.images) && item.images.length > 0 ? item.images.at(0) || "" : (item.image_url || "");
     const cleanItem: Product = {
       ...item,
       image_url: cover,
@@ -315,7 +342,8 @@ export default function App() {
   const heroTitleText = heroConfig.title?.trim() || t.heroTitle;
   const heroSubText = heroConfig.subtitle?.trim() || t.heroSub;
   const heroCtaText = heroConfig.cta?.trim() || t.heroCta;
-          return (
+
+  return (
     <div dir={LANGUAGES[lang].dir} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }} className="min-h-screen bg-white text-[#121212]">
       <div className="border-b border-neutral-200 bg-[#121212] px-4 py-2 text-[11px] tracking-widest text-white uppercase">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
@@ -387,8 +415,7 @@ export default function App() {
           </div>
         </div>
       </section>
-
-      {activeCategories.length > 0 && (
+          {activeCategories.length > 0 && (
         <section className="border-b border-neutral-200 bg-white">
           <div className="mx-auto max-w-7xl px-4 py-5 sm:px-8">
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -429,7 +456,8 @@ export default function App() {
             </select>
           </div>
         </div>
-                        {visibleProducts.length === 0 ? (
+
+        {visibleProducts.length === 0 ? (
           <div className="border border-neutral-200 bg-[#F6F5F3] px-6 py-16 text-center">
             <Package className="mx-auto h-8 w-8 text-neutral-400"></Package>
             <p className="mt-3 text-sm font-medium text-[#121212]">{t.emptyTitle}</p>
@@ -440,8 +468,10 @@ export default function App() {
             {visibleProducts.map((p) => {
               const media = getProductImages(p);
               const idx = Math.min(photoIdxMap[p.id] || 0, Math.max(0, media.length - 1));
-              const activeSrc = media[idx] || "";
+              const activeSrc = media.at(idx) || "";
               const loc = getProductText(p, lang);
+              const avail = isAvailable(p);
+              const hasQty = typeof p.stock_qty === "number";
 
               return (
                 <article key={p.id} className="group flex flex-col">
@@ -470,10 +500,17 @@ export default function App() {
                     <div>
                       <p className="text-[10px] tracking-widest text-neutral-400 uppercase">{p.category}</p>
                       <h3 onClick={() => { setQuickProduct(p); setQuickQty(1); }} className="mt-1 cursor-pointer text-sm font-medium text-[#121212] group-hover:underline">{loc.name}</h3>
-                      <p className="mt-1.5 text-sm font-semibold text-[#121212]">{activeRegion.symbol}{unitPrice(p).toFixed(2)}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1">
+                        <p className="text-sm font-semibold text-[#121212]">{activeRegion.symbol}{unitPrice(p).toFixed(2)}</p>
+                        {hasQty && (
+                          <span className={`text-[11px] font-medium ${!avail ? "text-red-600" : (p.stock_qty || 0) <= 5 ? "text-amber-700" : "text-neutral-500"}`}>
+                            {!avail ? t.outOfStock : `${p.stock_qty} ${(p.stock_qty || 0) <= 5 ? t.onlyLeftLabel : t.inStockLabel}`}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <button type="button" disabled={!p.in_stock} onClick={() => addToCart(p.id)} className="mt-3.5 w-full border border-[#121212] bg-white py-2.5 text-[11px] font-medium tracking-widest text-[#121212] uppercase hover:bg-[#121212] hover:text-white disabled:opacity-40 transition">
-                      {p.in_stock ? t.addToBag : t.outOfStock}
+                    <button type="button" disabled={!avail} onClick={() => addToCart(p.id)} className="mt-3.5 w-full border border-[#121212] bg-white py-2.5 text-[11px] font-medium tracking-widest text-[#121212] uppercase hover:bg-[#121212] hover:text-white disabled:opacity-40 transition">
+                      {avail ? t.addToBag : t.outOfStock}
                     </button>
                   </div>
                 </article>
@@ -486,8 +523,10 @@ export default function App() {
       {quickProduct && (() => {
         const qMedia = getProductImages(quickProduct);
         const qIdx = Math.min(photoIdxMap[quickProduct.id] || 0, Math.max(0, qMedia.length - 1));
-        const qSrc = qMedia[qIdx] || "";
+        const qSrc = qMedia.at(qIdx) || "";
         const qLoc = getProductText(quickProduct, lang);
+        const qAvail = isAvailable(quickProduct);
+        const qMax = typeof quickProduct.stock_qty === "number" ? Math.max(1, quickProduct.stock_qty) : 99;
         return (
           <div onClick={() => setQuickProduct(null)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-xs">
             <div onClick={(e) => e.stopPropagation()} className="relative grid max-h-[90vh] w-full max-w-3xl overflow-y-auto border border-neutral-200 bg-white md:grid-cols-2">
@@ -506,17 +545,19 @@ export default function App() {
                   <p className="text-[10px] font-semibold tracking-widest text-neutral-400 uppercase">{quickProduct.category}</p>
                   <h2 style={{ fontFamily: "'Cormorant Garamond', serif" }} className="mt-1.5 text-3xl font-semibold text-[#121212]">{qLoc.name}</h2>
                   <p className="mt-2 text-lg font-semibold text-[#121212]">{activeRegion.symbol}{unitPrice(quickProduct).toFixed(2)}</p>
-                  <p className="mt-4 text-xs leading-relaxed text-neutral-600">{qLoc.description}</p>
+                  {typeof quickProduct.stock_qty === "number" && (
+                    <p className={`mt-1.5 text-xs font-semibold ${!qAvail ? "text-red-600" : quickProduct.stock_qty <= 5 ? "text-amber-700" : "text-emerald-700"}`}>
+                                                <p className="mt-4 text-xs leading-relaxed text-neutral-600">{qLoc.description}</p>
                 </div>
                 <div className="mt-6 space-y-3 border-t border-neutral-200 pt-5">
                   <div className="inline-flex items-center border border-neutral-300">
                     <button type="button" onClick={() => setQuickQty((q) => Math.max(1, q - 1))} className="px-3 py-2 text-neutral-600"><Minus className="h-3.5 w-3.5"></Minus></button>
                     <span className="px-4 text-xs font-semibold">{quickQty}</span>
-                    <button type="button" onClick={() => setQuickQty((q) => q + 1)} className="px-3 py-2 text-neutral-600"><Plus className="h-3.5 w-3.5"></Plus></button>
+                    <button type="button" onClick={() => setQuickQty((q) => Math.min(qMax, q + 1))} className="px-3 py-2 text-neutral-600"><Plus className="h-3.5 w-3.5"></Plus></button>
                   </div>
-                  <button type="button" disabled={!quickProduct.in_stock} onClick={() => { addToCart(quickProduct.id, quickQty); setQuickProduct(null); }} className="flex w-full items-center justify-center gap-2 bg-[#121212] py-3.5 text-xs font-medium tracking-widest text-white uppercase hover:bg-neutral-800 disabled:opacity-40 transition">
+                  <button type="button" disabled={!qAvail} onClick={() => { addToCart(quickProduct.id, quickQty); setQuickProduct(null); }} className="flex w-full items-center justify-center gap-2 bg-[#121212] py-3.5 text-xs font-medium tracking-widest text-white uppercase hover:bg-neutral-800 disabled:opacity-40 transition">
                     <Check className="h-4 w-4"></Check>
-                    <span>{quickProduct.in_stock ? t.addToBag : t.outOfStock}</span>
+                    <span>{qAvail ? t.addToBag : t.outOfStock}</span>
                   </button>
                 </div>
               </div>
@@ -544,4 +585,4 @@ export default function App() {
       {toastMsg && <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 bg-[#121212] px-5 py-3 text-xs font-medium tracking-wider text-white uppercase shadow-lg">{toastMsg}</div>}
     </div>
   );
-                    }
+}
