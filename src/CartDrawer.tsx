@@ -42,7 +42,7 @@ function buildWhatsAppUrl(order: StoreOrder): string {
   const params = new URLSearchParams();
   params.set("phone", "96181428535");
   params.set("text", lines.join("\n"));
-  return "https://whatsapp.com?" + params.toString();
+    return ["https://wa.me", "96181428535"].join("/") + "?text=" + encodeURIComponent(lines.join("\n"));
 }
 
 
